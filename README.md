@@ -44,25 +44,3 @@ Everything stays in your browser. ChatGPT's own page scripts can see which passa
 `UNSAFE_VAR_ASSIGNMENT` points at an `innerHTML` assignment in the content script bundle. It comes from Preact's `dangerouslySetInnerHTML` path, which this code never reaches, and the standards script bans `dangerouslySetInnerHTML`, `innerHTML` and the other raw HTML injection APIs in all shipped code under `src`.
 
 `DANGEROUS_EVAL` points at the background bundle. It comes from the feature probe in zod 4, which calls `Function("")` inside a try block to learn whether the browser allows string evaluation. The extension configures zod as jitless before any schema is built, so the probe never runs and the browser never sees a string evaluation, which leaves the warning as a static match on code that is present in the bundle but unreachable. The extension never evaluates a string of its own.
-
-## Manual Firefox checklist
-
-Playwright drives Chromium only, so check these by hand in Firefox 140 or later on chatgpt.com after loading `dist/firefox-mv3`, once in the light theme and once in the dark theme.
-
-- [ ] The extension loads without errors in `about:debugging` and the console shows no content script exceptions on a chat page.
-- [ ] Selecting text in a finished answer shows the pill, and choosing a color paints the passage.
-- [ ] The pill, popover and Highlights view use ChatGPT's own font and text color in both themes, never a serif font or black text on the dark theme.
-- [ ] The pill sits to the right of ChatGPT's own Ask ChatGPT button, not under or over it, once that button settles.
-- [ ] Reloading the chat paints the same passage again with no flash of unstyled text.
-- [ ] A note and a tag added in the popover are still there after a reload.
-- [ ] The Highlights entry appears in the sidebar and opens the view exactly over the main pane.
-- [ ] Search filters the rows, and clicking a row from another chat opens that chat and flashes the passage.
-- [ ] Ask about this on a painted highlight uses ChatGPT's own ask box and pastes the note into the composer.
-- [ ] Ask about this from the view on a highlight of another chat pastes the quote and the note into the composer.
-- [ ] Ask about this from the view on a highlight of the current chat closes the view, uses ChatGPT's own ask box and leaves no stray pill behind.
-- [ ] Clicking New chat while the Highlights view is open closes the view and shows the new chat.
-- [ ] Collapsing and then expanding ChatGPT's sidebar keeps the Highlights entry in the visible sidebar, and the same holds after loading a chat with the sidebar collapsed.
-- [ ] Highlight a passage in a throwaway chat, wait at least an hour, delete that chat in ChatGPT, then open the view. The chat moves to Recently deleted, which proves the content script request carries your ChatGPT session in Firefox.
-- [ ] Escape closes an open Export menu first and then the view.
-- [ ] Exporting Markdown downloads a file that contains the quote, and restoring the same JSON backup twice adds nothing the second time.
-- [ ] Pressing Alt+Shift+H, or clicking the toolbar button, opens the Highlights view in the current ChatGPT tab.

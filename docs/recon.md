@@ -62,4 +62,4 @@ The thread scrolls inside `main .thread-scroll-container` while the root scrolle
 
 ## Not verifiable here
 
-Content-script `fetch` cookie behavior in Chrome and Firefox is verified by the E2E fixture and the manual Firefox checklist.
+Content-script `fetch` cookie behavior in Chrome and Firefox is verified by the E2E fixture and by hand in Firefox.
