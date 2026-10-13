@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { COMPOSER, NATIVE_WAIT_MS } from '@/chatgpt'
+import { COMPOSER, NATIVE_WAIT_MS, TEMPORARY_CHAT_ON, TEMPORARY_CHAT_PARAM } from '@/chatgpt'
 import { LIMITS, TEMPORARY_CHAT_MESSAGE } from '@/model'
 import { createPainter, type Painter, paint } from '@/painter'
 import {
@@ -266,7 +266,7 @@ describe('not showing the pill', () => {
   })
 })
 
-const TEMPORARY_ADDRESS = '?temporary-chat=true'
+const TEMPORARY_ADDRESS = `?${TEMPORARY_CHAT_PARAM}=${TEMPORARY_CHAT_ON}`
 
 const goTo = (search: string): void => {
   history.replaceState(null, '', `/${search}`)
@@ -315,6 +315,25 @@ describe('temporary chats', () => {
   it('does not say anything while the Highlights view is open', async () => {
     store.library.value = { snapshot: EMPTY_SNAPSHOT, now: LATER_TIME }
     begin()
+    await readyToSelect()
+    expect(store.toast.value).toBeNull()
+  })
+
+  it('keeps the one-time toast when a release selects nothing', async () => {
+    begin()
+    const range = rangeOver(requireUnit(FIRST_ANSWER_ID).textRoot)
+    range.collapse(true)
+    selectRange(range)
+    await release()
+    expect(store.toast.value).toBeNull()
+    await readyToSelect()
+    expect(store.toast.value?.message).toBe(TEMPORARY_CHAT_MESSAGE)
+  })
+
+  it('does not say anything for a selection over an existing highlight', async () => {
+    begin()
+    const range = rangeOfQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    paint(painter, { id: makeHighlight().id, range, color: 'yellow', hasNote: false })
     await readyToSelect()
     expect(store.toast.value).toBeNull()
   })

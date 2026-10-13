@@ -1,4 +1,4 @@
-import { ASK_BOX, conversationUrl, TEMPORARY_CHAT_PARAM } from '@/chatgpt'
+import { ASK_BOX, conversationUrl, TEMPORARY_CHAT_ON, TEMPORARY_CHAT_PARAM } from '@/chatgpt'
 import { PILL_DOCK_GAP_PX, TEMPORARY_CHAT_MESSAGE } from '@/model'
 import { FIXTURE_CONVERSATION_ID, PULL_QUOTE } from '@/testing/fixture-ids'
 import { FIXTURE_FONT, TEXT_COLORS } from './chatgpt-page/page'
@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('offers no pill in a temporary chat and says why', async ({ page }) => {
-  await page.goto(`${CHAT_URL}?${TEMPORARY_CHAT_PARAM}=true`)
+  await page.goto(`${CHAT_URL}?${TEMPORARY_CHAT_PARAM}=${TEMPORARY_CHAT_ON}`)
   await expect(sidebarItem(page)).toBeVisible()
   await selectText(page, PULL_TARGET)
   await expect(page.getByRole('status')).toHaveText(TEMPORARY_CHAT_MESSAGE)
