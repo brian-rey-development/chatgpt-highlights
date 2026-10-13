@@ -1,5 +1,5 @@
-import { ASK_BOX, conversationUrl } from '@/chatgpt'
-import { PILL_DOCK_GAP_PX } from '@/model'
+import { ASK_BOX, conversationUrl, TEMPORARY_CHAT_PARAM } from '@/chatgpt'
+import { PILL_DOCK_GAP_PX, TEMPORARY_CHAT_MESSAGE } from '@/model'
 import { FIXTURE_CONVERSATION_ID, PULL_QUOTE } from '@/testing/fixture-ids'
 import { FIXTURE_FONT, TEXT_COLORS } from './chatgpt-page/page'
 import { storedHighlights } from './extension-data'
@@ -27,6 +27,15 @@ const CHAT_URL = conversationUrl(FIXTURE_CONVERSATION_ID)
 
 test.beforeEach(async ({ page }) => {
   await page.goto(CHAT_URL)
+})
+
+test('offers no pill in a temporary chat and says why', async ({ page }) => {
+  await page.goto(`${CHAT_URL}?${TEMPORARY_CHAT_PARAM}=true`)
+  await expect(sidebarItem(page)).toBeVisible()
+  await selectText(page, PULL_TARGET)
+  await expect(page.getByRole('status')).toHaveText(TEMPORARY_CHAT_MESSAGE)
+  await waitFrames(page, SETTLE_FRAMES)
+  await expect(pill(page)).toHaveCount(0)
 })
 
 test('paints a highlight again after a reload', async ({ page }) => {

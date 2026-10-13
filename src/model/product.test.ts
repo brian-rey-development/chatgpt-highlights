@@ -9,6 +9,7 @@ import {
   PILL_DOCK_GAP_PX,
   REMOVED_MESSAGE,
   SEARCH_LABEL,
+  TEMPORARY_CHAT_MESSAGE,
   TRASH_LABEL,
 } from './product'
 
@@ -28,6 +29,11 @@ describe('the user-facing copy and the values end-to-end tests assert', () => {
       name: 'MOVED_TO_TRASH_MESSAGE',
       value: MOVED_TO_TRASH_MESSAGE,
       expected: 'Deleted chats moved to Recently deleted.',
+    },
+    {
+      name: 'TEMPORARY_CHAT_MESSAGE',
+      value: TEMPORARY_CHAT_MESSAGE,
+      expected: 'Highlights are off in temporary chats',
     },
     { name: 'SEARCH_LABEL', value: SEARCH_LABEL, expected: 'Search highlights and notes' },
     { name: 'TRASH_LABEL', value: TRASH_LABEL, expected: 'Recently deleted' },

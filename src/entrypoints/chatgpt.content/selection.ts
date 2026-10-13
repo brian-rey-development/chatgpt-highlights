@@ -1,15 +1,17 @@
-import { isGenerating, nativeAskBox, watchNativeAskBox } from '@/chatgpt'
+import { isGenerating, isTemporaryChat, nativeAskBox, watchNativeAskBox } from '@/chatgpt'
+import { TEMPORARY_CHAT_MESSAGE } from '@/model'
 import { overlapsPainted } from '@/painter'
 import { onEscape } from './escape-key'
 import { listen, type Stop } from './listen'
 import { isOverlayEvent } from './overlay'
 import { firstLineRect } from './range-rect'
 import { selectionTarget } from './selection-target'
-import type { Runtime } from './store'
+import { type Runtime, showMessage } from './store'
 
 interface Release {
   frame: number | null
   unwatch: Stop | null
+  told: boolean
 }
 
 const LISTENER_OPTIONS = { capture: true, passive: true }
@@ -32,11 +34,22 @@ const redock =
     if (pill && boxKey(pill.dock) !== boxKey(dock)) store.pill.value = { ...pill, dock }
   }
 
+const declineTemporaryChat = ({ store }: Runtime, release: Release): void => {
+  store.pill.value = null
+  if (release.told) return
+  release.told = true
+  showMessage(store, TEMPORARY_CHAT_MESSAGE)
+}
+
 const showPill = (runtime: Runtime, release: Release): void => {
   const { doc, store } = runtime
   const target = mayOfferPill(runtime) ? selectionTarget(doc) : null
   if (!target || overlapsPainted(runtime.painter, target.range)) {
     store.pill.value = null
+    return
+  }
+  if (isTemporaryChat(doc.location.search)) {
+    declineTemporaryChat(runtime, release)
     return
   }
   const near = target.range.getBoundingClientRect()
@@ -78,7 +91,7 @@ const outsideOverlay =
 
 export const startSelection = (runtime: Runtime): Stop => {
   const { doc, shadowRoot } = runtime
-  const release: Release = { frame: null, unwatch: null }
+  const release: Release = { frame: null, unwatch: null, told: false }
   const hide = (): void => hidePill(runtime, release)
   const onRelease = outsideOverlay(() => scheduleRelease(runtime, release))
   const onPress = outsideOverlay(() => dismissAll(runtime, release))

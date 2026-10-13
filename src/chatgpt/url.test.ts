@@ -5,9 +5,11 @@ import {
   CHATGPT_ORIGIN,
   conversationIdFromPath,
   conversationUrl,
+  isTemporaryChat,
   LIBRARY_ADDRESS,
   LIBRARY_HASH,
   LIBRARY_URL,
+  TEMPORARY_CHAT_PARAM,
 } from './url'
 
 describe('conversationIdFromPath', () => {
@@ -63,5 +65,23 @@ describe('urls', () => {
     expect(LIBRARY_ADDRESS).toBe('/#highlights')
     expect(LIBRARY_URL).toBe(`${CHATGPT_ORIGIN}${LIBRARY_ADDRESS}`)
     expect(new URL(LIBRARY_URL).hash).toBe(LIBRARY_HASH)
+  })
+})
+
+describe('isTemporaryChat', () => {
+  it.each([
+    { name: 'flag on', search: '?temporary-chat=true', expected: true },
+    { name: 'flag among other params', search: '?model=x&temporary-chat=true&a=b', expected: true },
+    { name: 'no query', search: '', expected: false },
+    { name: 'other params only', search: '?model=x', expected: false },
+    { name: 'flag off', search: '?temporary-chat=false', expected: false },
+    { name: 'flag without value', search: '?temporary-chat', expected: false },
+    { name: 'flag value in another case', search: '?temporary-chat=TRUE', expected: false },
+  ])('$name', ({ search, expected }) => {
+    expect(isTemporaryChat(search)).toBe(expected)
+  })
+
+  it('names the param ChatGPT puts on temporary chats', () => {
+    expect(TEMPORARY_CHAT_PARAM).toBe('temporary-chat')
   })
 })

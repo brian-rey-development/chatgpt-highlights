@@ -13,3 +13,9 @@ export const conversationIdFromPath = (pathname: string): string | null =>
 
 export const conversationUrl = (conversationId: string): string =>
   `${CHATGPT_ORIGIN}/c/${conversationId}`
+
+export const TEMPORARY_CHAT_PARAM = 'temporary-chat'
+const TEMPORARY_CHAT_ON = 'true'
+
+export const isTemporaryChat = (search: string): boolean =>
+  new URLSearchParams(search).get(TEMPORARY_CHAT_PARAM) === TEMPORARY_CHAT_ON

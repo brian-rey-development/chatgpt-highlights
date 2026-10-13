@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { COMPOSER, NATIVE_WAIT_MS } from '@/chatgpt'
-import { LIMITS } from '@/model'
+import { LIMITS, TEMPORARY_CHAT_MESSAGE } from '@/model'
 import { createPainter, type Painter, paint } from '@/painter'
 import {
   addStopButton,
@@ -263,6 +263,80 @@ describe('not showing the pill', () => {
     selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
     await release(overlayHost())
     expect(store.pill.value).toBeNull()
+  })
+})
+
+const TEMPORARY_ADDRESS = '?temporary-chat=true'
+
+const goTo = (search: string): void => {
+  history.replaceState(null, '', `/${search}`)
+}
+
+describe('temporary chats', () => {
+  beforeEach(() => {
+    goTo(TEMPORARY_ADDRESS)
+  })
+
+  afterEach(() => {
+    goTo('')
+  })
+
+  it('offers no pill', async () => {
+    begin()
+    await readyToSelect()
+    expect(store.pill.value).toBeNull()
+  })
+
+  it('says highlights are off on the first selection that would have offered a pill', async () => {
+    begin()
+    await readyToSelect()
+    expect(store.toast.value?.message).toBe(TEMPORARY_CHAT_MESSAGE)
+  })
+
+  it('stays silent on later selections in the same tab', async () => {
+    begin()
+    await readyToSelect()
+    expect(store.toast.value).not.toBeNull()
+    store.toast.value = null
+    await readyToSelect()
+    expect(store.toast.value).toBeNull()
+  })
+
+  it('does not say anything when no pill would have been offered anyway', async () => {
+    store.popover.value = { highlight: makeHighlight(), anchor: SELECTION_BOX }
+    begin()
+    await readyToSelect()
+    expect(store.toast.value).toBeNull()
+    store.popover.value = null
+    await readyToSelect()
+    expect(store.toast.value?.message).toBe(TEMPORARY_CHAT_MESSAGE)
+  })
+
+  it('does not say anything while the Highlights view is open', async () => {
+    store.library.value = { snapshot: EMPTY_SNAPSHOT, now: LATER_TIME }
+    begin()
+    await readyToSelect()
+    expect(store.toast.value).toBeNull()
+  })
+
+  it('offers the pill again once the address moves to a normal chat', async () => {
+    begin()
+    await readyToSelect()
+    expect(store.toast.value).not.toBeNull()
+    goTo('')
+    await readyToSelect()
+    expect(store.pill.value).not.toBeNull()
+  })
+
+  it('goes quiet again when the address returns to a temporary chat', async () => {
+    begin()
+    await readyToSelect()
+    goTo('')
+    await readyToSelect()
+    store.toast.value = null
+    goTo(TEMPORARY_ADDRESS)
+    await readyToSelect()
+    expect([store.pill.value, store.toast.value]).toEqual([null, null])
   })
 })
 
