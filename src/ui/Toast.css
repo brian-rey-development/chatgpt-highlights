@@ -1,0 +1,35 @@
+.hl-toast {
+  position: fixed;
+  z-index: var(--hl-layer-toast);
+  left: 50%;
+  bottom: 112px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: var(--hl-radius-item);
+  background: var(--hl-text);
+  color: var(--hl-text-inverse);
+  font-size: var(--hl-text-sm);
+  line-height: 20px;
+  animation: hl-toast-in 0.18s ease-out;
+}
+
+.hl-toast__action {
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+@keyframes hl-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-toast {
+    animation: none;
+  }
+}

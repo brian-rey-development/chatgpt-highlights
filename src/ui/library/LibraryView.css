@@ -1,0 +1,45 @@
+.hl-library {
+  position: fixed;
+  z-index: var(--hl-layer-library);
+  overflow-y: auto;
+  background: var(--hl-surface);
+  color: var(--hl-text);
+  font-size: var(--hl-text-base);
+  line-height: 24px;
+}
+
+.hl-library__page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 12px 20px 64px;
+}
+
+.hl-library__empty {
+  margin: 0;
+  padding: 48px 0;
+  color: var(--hl-text-tertiary);
+  text-align: center;
+}
+
+.hl-group {
+  margin-bottom: 24px;
+}
+
+.hl-group__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 10px 6px;
+}
+
+.hl-group__title {
+  margin: 0;
+  font-size: var(--hl-text-sm);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.hl-group__count {
+  color: var(--hl-text-tertiary);
+  font-size: var(--hl-text-xs);
+}

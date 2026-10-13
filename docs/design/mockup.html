@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Highlights Mockup</title>
+<script>
+  try {
+    const saved = localStorage.getItem('mock-theme')
+    const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  } catch {}
+</script>
+<style>
+/* Values captured from chatgpt.com computed styles (data-theme light/dark). The real
+   extension reads ChatGPT's own --color-* variables instead of copying them. */
+:root {
+  --font-ui: -apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-sm: 14px; --text-xs: 12px; --text-2xl: 24px;
+  --shadow-lg: 0 4px 8px -2px #0000001a;
+  --composer-radius: 28px;
+  --chat-accent-yellow: #ffcc38; --chat-accent-green: #04bb9f; --chat-accent-blue: #3566f0;
+  --chat-accent-pink: #fa70ab; --chat-accent-purple: #a25bff;
+}
+:root[data-theme="light"] {
+  --surface: #fcfcfc; --surface-tertiary: #f9f9f9; --surface-elevated: #ffffff; --surface-elevated-secondary: #ffffff;
+  --text: #0d0d0d; --text-secondary: #5d5d5d; --text-tertiary: #8f8f8f; --text-inverse: #ffffff;
+  --border-subtle: #0000000d; --border: #0000001a; --border-strong: #00000026;
+  --hover: #0000000d; --soft: #f3f3f3;
+  --composer-bg: #ffffff; --hairline: #0000001a;
+  --user-bubble: #fbe8db; --user-bubble-text: #45240d;
+  --accent: #d25e28; --selection: rgba(238, 124, 55, 0.3);
+  --hl-mix: 34%;
+}
+:root[data-theme="dark"] {
+  --surface: #000000; --surface-tertiary: #212121; --surface-elevated: #1b1b1b; --surface-elevated-secondary: #303030;
+  --text: #ededed; --text-secondary: #cdcdcd; --text-tertiary: #afafaf; --text-inverse: #0d0d0d;
+  --border-subtle: #ffffff0d; --border: #ffffff26; --border-strong: #ffffff33;
+  --hover: #ffffff1a; --soft: #303030;
+  --composer-bg: #1b1b1b; --hairline: #ffffff1f;
+  --user-bubble: #87401d; --user-bubble-text: #fdf5f1;
+  --accent: #ee7c37; --selection: rgba(238, 124, 55, 0.6);
+  --hl-mix: 40%;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: var(--font-ui); font-size: 16px; line-height: 24px; color: var(--text); background: var(--surface); -webkit-font-smoothing: antialiased; }
+::selection { background: var(--selection); }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+svg.icon { width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.app { display: flex; height: 100vh; }
+
+.sidebar { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; padding: 0 6px 6px; }
+.sidebar-top { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 4px 0 10px; }
+.brand { font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+.icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: var(--text); }
+.icon-btn:hover { background: var(--hover); }
+.nav { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
+.nav-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 6px 10px; border-radius: 8px; font-size: var(--text-sm); line-height: 20px; width: 100%; text-align: left; }
+.nav-item:hover, .nav-item.active { background: var(--hover); }
+.nav-item .count { margin-left: auto; font-size: var(--text-xs); color: var(--text-tertiary); }
+.section-label { font-size: var(--text-sm); color: var(--text-tertiary); padding: 20px 10px 6px; }
+.history { overflow-y: auto; flex: 1; }
+.history .nav-item { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 24px; }
+.account { display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 8px; border-top: 1px solid var(--border-subtle); margin: 0 -6px; padding-left: 14px; padding-right: 12px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: #13a07c; color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 600; }
+.account .who { flex: 1; font-size: var(--text-sm); line-height: 18px; }
+.account .who small { display: block; color: var(--text-tertiary); font-size: var(--text-xs); }
+.upgrade { height: 28px; padding: 0 10px; border-radius: 9999px; font-size: var(--text-xs); font-weight: 500; background: var(--surface-elevated-secondary); border: 1px solid var(--border-strong); }
+
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+.topbar { height: 52px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 8px; flex-shrink: 0; }
+.topbar .title { margin-right: auto; padding-left: 12px; font-size: 18px; visibility: hidden; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 9999px; font-size: var(--text-sm); }
+.pill:hover { background: var(--hover); }
+.pill.outline { border: 1px solid var(--border); }
+.view { flex: 1; overflow-y: auto; display: none; }
+.view.shown { display: block; }
+
+.thread { max-width: 680px; margin: 0 auto; padding: 16px 20px 200px; }
+.turn-user { display: flex; justify-content: flex-end; margin: 20px 0 28px; }
+.bubble { background: var(--user-bubble); color: var(--user-bubble-text); border-radius: 22px; padding: 10px 16px; max-width: 70%; }
+.prose { line-height: 26px; }
+.prose p { margin: 0 0 16px; }
+.prose h3 { font-size: 18px; font-weight: 600; margin: 24px 0 8px; line-height: 28px; }
+.prose ul { padding-left: 22px; margin: 0 0 16px; }
+.prose li { padding-left: 6px; margin: 4px 0; }
+.prose code { font-family: var(--font-mono); font-size: 14px; background: var(--soft); padding: 2px 5px; border-radius: 6px; }
+.msg-actions { display: flex; gap: 0; margin: -6px 0 24px -6px; }
+.msg-actions .icon-btn { width: 32px; height: 32px; color: var(--text-secondary); }
+.msg-actions svg { width: 18px; height: 18px; }
+
+mark.hl { color: inherit; border-radius: 3px; padding: 1px 0; cursor: pointer; background: color-mix(in oklab, var(--ink) var(--hl-mix), transparent); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+mark.hl[data-color="yellow"] { --ink: var(--chat-accent-yellow); }
+mark.hl[data-color="green"] { --ink: var(--chat-accent-green); }
+mark.hl[data-color="blue"] { --ink: var(--chat-accent-blue); }
+mark.hl[data-color="pink"] { --ink: var(--chat-accent-pink); }
+mark.hl[data-color="purple"] { --ink: var(--chat-accent-purple); }
+mark.hl.has-note { box-shadow: inset 0 -2px 0 var(--ink); }
+mark.hl.flash { animation: flash 1.4s ease-out; }
+@keyframes flash { 0%, 45% { outline: 2px solid var(--ink); outline-offset: 2px; } 100% { outline: 2px solid transparent; outline-offset: 2px; } }
+
+.composer-wrap { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 20px 8px; background: linear-gradient(to top, var(--surface) 75%, transparent); }
+.composer { max-width: 680px; margin: 0 auto; border-radius: var(--composer-radius); background: var(--composer-bg); box-shadow: var(--shadow-lg), 0 0 0 .5px var(--hairline); padding: 8px; min-height: 56px; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "chip chip chip" "left input right"; align-items: center; column-gap: 4px; }
+:root[data-theme="dark"] .composer { box-shadow: inset 0 0 1px rgba(255,255,255,.2), 0 0 0 .5px var(--hairline); }
+.composer.expanded { grid-template-areas: "chip chip chip" "input input input" "left . right"; row-gap: 4px; padding-top: 10px; }
+.composer-left { grid-area: left; display: flex; }
+.composer-right { grid-area: right; display: flex; align-items: center; gap: 2px; }
+.composer .input { grid-area: input; min-height: 26px; outline: none; line-height: 26px; padding: 0 6px; max-height: 208px; overflow-y: auto; }
+.composer.expanded .input { padding: 0 8px; }
+.composer .input:empty::before { content: "Ask ChatGPT"; color: var(--text-tertiary); }
+.quote-chip { grid-area: chip; display: none; align-items: flex-start; gap: 8px; margin: 0 0 6px; padding: 8px 8px 8px 10px; border-radius: 16px; background: var(--soft); color: var(--text-secondary); font-size: var(--text-sm); line-height: 20px; }
+.quote-chip.shown { display: flex; }
+.quote-chip svg { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; }
+.quote-chip .q { flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.quote-chip button { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; color: var(--text-secondary); flex-shrink: 0; }
+.quote-chip button:hover { background: var(--hover); color: var(--text); }
+.think { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border-radius: 9999px; font-size: var(--text-sm); color: var(--text-secondary); }
+.think:hover { background: var(--hover); }
+.voice { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }
+.disclaimer { text-align: center; font-size: var(--text-xs); color: var(--text-secondary); margin-top: 8px; }
+
+/* ChatGPT's own selection pill (surface-elevated-secondary, 8px radius, shadow-lg), extended */
+.sel-bar { position: fixed; display: none; align-items: center; background: var(--surface-elevated-secondary); border-radius: 8px; box-shadow: var(--shadow-lg), 0 0 0 .5px var(--hairline); z-index: 50; padding: 0 2px; }
+.sel-bar.shown { display: flex; }
+.sel-bar .ask { height: 28px; padding: 0 6px; font-size: var(--text-sm); border-radius: 6px; }
+.sel-bar .ask:hover, .sel-bar .tool:hover, .sel-bar .dot-btn:hover { background: var(--hover); }
+.sel-bar .divider { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; display: block; }
+.dot-btn { width: 24px; height: 28px; display: grid; place-items: center; border-radius: 6px; }
+.dot.yellow { background: var(--chat-accent-yellow); } .dot.green { background: var(--chat-accent-green); } .dot.blue { background: var(--chat-accent-blue); } .dot.pink { background: var(--chat-accent-pink); } .dot.purple { background: var(--chat-accent-purple); }
+.sel-bar .tool { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; color: var(--text-secondary); }
+.sel-bar .tool svg { width: 16px; height: 16px; }
+
+.popover, .menu { background: var(--surface-elevated-secondary); box-shadow: var(--shadow-lg), 0 0 0 .5px var(--hairline); border-radius: 16px; z-index: 60; font-size: var(--text-sm); }
+.popover { position: fixed; display: none; width: 320px; padding: 10px; }
+.popover.shown { display: block; }
+.pop-row { display: flex; align-items: center; justify-content: space-between; }
+.pop-dots { display: flex; gap: 2px; }
+.pop-dots .dot-btn { width: 28px; height: 28px; }
+.pop-dots .dot { width: 16px; height: 16px; }
+.pop-dots .dot-btn.selected .dot { box-shadow: 0 0 0 2px var(--surface-elevated-secondary), 0 0 0 3.5px var(--text); }
+textarea.note { display: block; width: 100%; margin-top: 8px; min-height: 76px; resize: vertical; border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; font: inherit; font-size: var(--text-sm); line-height: 20px; color: var(--text); outline: none; background: transparent; }
+textarea.note::placeholder, .tag-input::placeholder { color: var(--text-tertiary); }
+textarea.note:focus { border-color: var(--border-strong); }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; align-items: center; }
+.tag { font-size: var(--text-xs); line-height: 16px; padding: 2px 8px; border-radius: 9999px; background: var(--hover); color: var(--text-secondary); }
+.tag-input { border: 0; outline: none; font: inherit; font-size: var(--text-xs); color: var(--text); width: 100px; background: transparent; padding: 2px 4px; }
+.pop-actions { display: flex; gap: 2px; margin-top: 8px; border-top: 1px solid var(--border-subtle); padding-top: 6px; }
+.menu-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border-radius: 10px; font-size: var(--text-sm); width: 100%; text-align: left; }
+.menu-item:hover { background: var(--hover); }
+.menu-item svg { width: 18px; height: 18px; }
+.menu-item.danger { color: #e02e2a; }
+:root[data-theme="dark"] .menu-item.danger { color: #ff6b66; }
+
+.lib { max-width: 680px; margin: 0 auto; padding: 12px 20px 64px; }
+.lib h1 { font-size: var(--text-2xl); line-height: 28.8px; font-weight: 400; margin: 8px 0 20px; }
+.search { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 9999px; background: var(--composer-bg); box-shadow: 0 0 0 .5px var(--hairline), var(--shadow-lg); color: var(--text-tertiary); }
+:root[data-theme="dark"] .search { box-shadow: inset 0 0 1px rgba(255,255,255,.2), 0 0 0 .5px var(--hairline); }
+.search input { flex: 1; border: 0; outline: none; font: inherit; color: var(--text); background: transparent; }
+.search input::placeholder { color: var(--text-tertiary); }
+.chips { display: flex; gap: 6px; margin: 14px 0 20px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-secondary); }
+.chip:hover { background: var(--hover); }
+.chip.on { background: var(--text); color: var(--text-inverse); border-color: var(--text); }
+.chip .dot { width: 10px; height: 10px; }
+.group { margin-bottom: 24px; }
+.group-head { display: flex; align-items: baseline; gap: 8px; padding: 0 10px 6px; }
+.group-head a { font-size: var(--text-sm); font-weight: 500; color: var(--text); text-decoration: none; }
+.group-head a:hover { text-decoration: underline; }
+.group-head span { font-size: var(--text-xs); color: var(--text-tertiary); }
+.hl-row { display: flex; gap: 12px; padding: 10px; border-radius: 12px; cursor: pointer; position: relative; }
+.hl-row:hover { background: var(--hover); }
+.hl-bar { width: 3px; border-radius: 3px; flex-shrink: 0; }
+.hl-body { flex: 1; min-width: 0; }
+.hl-quote { line-height: 24px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hl-note { display: flex; gap: 6px; margin-top: 4px; font-size: var(--text-sm); line-height: 20px; color: var(--text-secondary); }
+.hl-note svg { width: 16px; height: 16px; margin-top: 2px; }
+.hl-meta { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: var(--text-xs); color: var(--text-tertiary); flex-wrap: wrap; }
+.hl-hover { position: absolute; right: 8px; top: 6px; display: none; gap: 0; }
+.hl-row:hover .hl-hover { display: flex; }
+.hl-hover .icon-btn { width: 30px; height: 30px; color: var(--text-secondary); }
+.hl-hover .icon-btn:hover { color: var(--text); }
+.hl-hover svg { width: 16px; height: 16px; }
+.trash-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; font-size: var(--text-sm); color: var(--text-secondary); }
+.trash-row:hover { background: var(--hover); }
+.trash-row .grow { flex: 1; }
+.trash-row strong { color: var(--text); font-weight: 500; }
+.empty { text-align: center; color: var(--text-tertiary); padding: 48px 0; }
+
+.menu { position: absolute; display: none; min-width: 240px; padding: 6px; }
+.menu.shown { display: block; }
+.menu hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 4px 6px; }
+
+.toast { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%) translateY(6px); background: var(--text); color: var(--text-inverse); font-size: var(--text-sm); padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity .18s, transform .18s; pointer-events: none; z-index: 80; }
+.toast.shown { opacity: 1; transform: translateX(-50%); }
+@media (max-width: 760px) { .sidebar { display: none; } }
+</style>
+</head>
+<body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-compose" viewBox="0 0 24 24"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M17.6 3.4a2 2 0 0 1 2.9 2.9L12 14.8l-3.6.8.8-3.6Z"/></symbol>
+  <symbol id="i-images" viewBox="0 0 24 24"><rect x="7" y="3" width="14" height="14" rx="3"/><path d="M17 21H6a3 3 0 0 1-3-3V7"/><path d="m7 14 4-4 4 4 2-2 4 4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><rect x="3" y="4" width="4.5" height="16" rx="1.2"/><rect x="9.5" y="4" width="4.5" height="16" rx="1.2"/><path d="m16 5.3 3.6-.9 3 15.2-3.6.9Z"/></symbol>
+  <symbol id="i-at" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M15.5 8.5v5a2.5 2.5 0 0 0 5 0V12a8.5 8.5 0 1 0-3.3 6.7"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="19" cy="12" r="1.1" fill="currentColor"/></symbol>
+  <symbol id="i-highlighter" viewBox="0 0 24 24"><path d="m9 11-5.5 5.5V20h7.5l2.5-2.5"/><path d="m21.5 11.5-4.3 4.3a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1 0-2.8L12.5 2.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><path d="M9.5 4.5v15"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 14V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><circle cx="5.5" cy="7" r="1.8"/><circle cx="5.5" cy="17" r="1.8"/><path d="M11 7h9M11 17h9"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9"/></symbol>
+  <symbol id="i-upload-msg" viewBox="0 0 24 24"><path d="M12 14V4M8 8l4-4 4 4"/><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M5 17h3l2-5V6H4v6h3M14 17h3l2-5V6h-6v6h3"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v9l-6 7H7a2 2 0 0 1-2-2Z"/><path d="M13 21v-5a2 2 0 0 1 2-2h4M9 8h6M9 11.5h4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 19h14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V5M8 9l4-4 4 4"/><path d="M5 19h14"/></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M5 4v6a4 4 0 0 0 4 4h10M15 10l4 4-4 4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-think" viewBox="0 0 24 24"><path d="M12 4.5a7.5 7.5 0 1 0 0 15a7.5 7.5 0 0 0 0-15Z"/><path d="M12 4.5c-2 2-2 13 0 15M12 4.5c2 2 2 13 0 15"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V20.5"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M6 10v4M9.5 7v10M13 9v6M16.5 6v12M20 10v4" stroke-width="2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8.5 7H17v8.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5M4 4v4.5h4.5"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <span class="brand">ChatGPT</span>
+      <div style="display:flex">
+        <button class="icon-btn" aria-label="Search chats"><svg class="icon"><use href="#i-search"/></svg></button>
+        <button class="icon-btn" aria-label="Close sidebar"><svg class="icon"><use href="#i-sidebar"/></svg></button>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item" data-nav="chat"><svg class="icon"><use href="#i-compose"/></svg>New chat</button>
+      <button class="nav-item"><svg class="icon"><use href="#i-images"/></svg>Images</button>
+      <button class="nav-item"><svg class="icon"><use href="#i-clock"/></svg>Scheduled</button>
+      <button class="nav-item"><svg class="icon"><use href="#i-library"/></svg>Library</button>
+      <button class="nav-item" id="nav-highlights" data-nav="highlights"><svg class="icon"><use href="#i-highlighter"/></svg>Highlights<span class="count" id="hl-count"></span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-at"/></svg>Plugins</button>
+      <button class="nav-item"><svg class="icon"><use href="#i-dots"/></svg>Explore</button>
+    </nav>
+    <div class="section-label">Pinned</div>
+    <div class="nav"><button class="nav-item"><svg class="icon"><use href="#i-folder"/></svg>Projects</button></div>
+    <div class="section-label">Chats</div>
+    <div class="history">
+      <button class="nav-item active" data-nav="chat" id="nav-current">Bayesian vs frequentist A/B tests</button>
+      <button class="nav-item">B-tree vs LSM for write-heavy loads</button>
+      <button class="nav-item">Pricing page experiment ideas</button>
+      <button class="nav-item">Explain eigenvectors intuitively</button>
+      <button class="nav-item">Moon phases explained</button>
+      <button class="nav-item">WXT vs Plasmo for extensions</button>
+    </div>
+    <div class="account">
+      <div class="avatar">TU</div>
+      <div class="who">Test User<small>Free</small></div>
+      <button class="upgrade">Upgrade</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <span class="title">Highlights</span>
+      <button class="icon-btn" id="theme-btn" aria-label="Toggle theme"><svg class="icon"><use href="#i-moon"/></svg></button>
+      <span id="topbar-chat" style="display:contents">
+        <button class="pill"><svg class="icon"><use href="#i-share"/></svg>Share</button>
+        <button class="icon-btn" aria-label="Outline"><svg class="icon"><use href="#i-list"/></svg></button>
+        <button class="icon-btn" aria-label="More"><svg class="icon"><use href="#i-dots"/></svg></button>
+      </span>
+      <span id="topbar-lib" style="display:none">
+        <button class="pill outline" id="export-btn"><svg class="icon"><use href="#i-download"/></svg>Export</button>
+      </span>
+    </header>
+
+    <section class="view shown" id="view-chat">
+      <div class="thread">
+        <div class="turn-user"><div class="bubble">When should I use a Bayesian A/B test instead of a classic frequentist one? Our traffic is pretty low.</div></div>
+        <div class="prose" data-message-id="m1">
+          <p>With low traffic, a Bayesian test is usually the better fit, mainly because it answers the question you actually care about. A frequentist test tells you how surprising your data would be <em>if there were no difference</em>, while a Bayesian test gives you <mark class="hl has-note" data-color="yellow" data-id="h1">the probability that variant B is better than A, given the data you have seen</mark>.</p>
+          <h3>Why it matters with low traffic</h3>
+          <ul>
+            <li><strong>No fixed sample size.</strong> Frequentist tests require you to commit to a sample size up front, and peeking at results early inflates your false-positive rate.</li>
+            <li><strong>Priors help when data is scarce.</strong> <mark class="hl" data-color="green" data-id="h2">An informative prior built from past experiments acts like extra data</mark>, so you reach a useful conclusion with fewer visitors.</li>
+            <li><strong>Decisions, not just significance.</strong> You can compute the expected loss of shipping B and stop once it drops below a threshold you can tolerate.</li>
+          </ul>
+          <h3>When frequentist still wins</h3>
+          <p>If you need a result that regulators or skeptical stakeholders will accept without debating your prior, a pre-registered frequentist test is easier to defend. It is also the default in most tools, such as <code>statsmodels</code> and Optimizely's classic engine.</p>
+          <p>A practical rule is to <mark class="hl has-note" data-color="purple" data-id="h3">use Bayesian when you need to make a call with limited data, and frequentist when you need a result nobody can argue with</mark>.</p>
+        </div>
+        <div class="msg-actions">
+          <button class="icon-btn"><svg class="icon"><use href="#i-copy"/></svg></button>
+          <button class="icon-btn"><svg class="icon"><use href="#i-upload-msg"/></svg></button>
+          <button class="icon-btn"><svg class="icon"><use href="#i-speaker"/></svg></button>
+          <button class="icon-btn"><svg class="icon"><use href="#i-refresh"/></svg></button>
+          <button class="icon-btn"><svg class="icon"><use href="#i-dots"/></svg></button>
+        </div>
+        <div class="turn-user"><div class="bubble">How do I pick a prior without biasing the result?</div></div>
+        <div class="prose" data-message-id="m2">
+          <p>Start with a weakly informative prior, for example a Beta(1, 1) for conversion rates, which treats every rate as equally likely. If you have historical data, fit a Beta to past conversion rates and then widen it, because a prior that is too confident will drown out the new experiment.</p>
+          <p>Then run a sensitivity check. Re-run the analysis with two or three different priors, and if the decision flips, you do not have enough data yet to trust any of them.</p>
+        </div>
+      </div>
+      <div class="composer-wrap">
+        <div class="composer" id="composer-box">
+          <div class="quote-chip" id="quote-chip">
+            <svg class="icon"><use href="#i-reply"/></svg><span class="q" id="quote-text"></span>
+            <button id="quote-clear" aria-label="Remove quote"><svg class="icon" style="width:14px;height:14px;margin:0"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="composer-left"><button class="icon-btn"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+          <div class="input" id="composer" contenteditable="true"></div>
+          <div class="composer-right">
+            <button class="think"><svg class="icon"><use href="#i-think"/></svg>Think</button>
+            <button class="icon-btn"><svg class="icon"><use href="#i-mic"/></svg></button>
+            <button class="voice"><svg class="icon"><use href="#i-wave"/></svg></button>
+          </div>
+        </div>
+        <div class="disclaimer">ChatGPT can make mistakes. Check important info.</div>
+      </div>
+    </section>
+
+    <section class="view" id="view-highlights">
+      <div class="lib">
+        <h1>Highlights</h1>
+        <label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" placeholder="Search highlights and notes"></label>
+        <div class="chips" id="chips"></div>
+        <div id="groups"></div>
+        <div class="group">
+          <div class="group-head"><a href="#" onclick="return false">Recently deleted</a><span>Removed permanently after 30 days</span></div>
+          <div class="trash-row">
+            <svg class="icon"><use href="#i-trash"/></svg>
+            <div class="grow"><strong>Kafka partition sizing</strong> &middot; 3 highlights, chat deleted 2 days ago</div>
+            <button class="pill outline" id="restore-btn"><svg class="icon" style="width:16px;height:16px"><use href="#i-restore"/></svg>Restore</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="menu" id="export-menu" style="right:8px; top:50px">
+      <button class="menu-item"><svg class="icon"><use href="#i-download"/></svg>Markdown, all highlights</button>
+      <button class="menu-item"><svg class="icon"><use href="#i-download"/></svg>Markdown, current filter</button>
+      <hr>
+      <button class="menu-item"><svg class="icon"><use href="#i-download"/></svg>Back up as JSON</button>
+      <button class="menu-item"><svg class="icon"><use href="#i-upload"/></svg>Restore from backup</button>
+    </div>
+  </main>
+</div>
+
+<div class="sel-bar" id="sel-bar">
+  <button class="ask" id="sel-ask">Ask ChatGPT</button>
+  <div class="divider"></div>
+  <button class="dot-btn" data-color="yellow" title="Highlight yellow"><span class="dot yellow"></span></button>
+  <button class="dot-btn" data-color="green" title="Highlight green"><span class="dot green"></span></button>
+  <button class="dot-btn" data-color="blue" title="Highlight blue"><span class="dot blue"></span></button>
+  <button class="dot-btn" data-color="pink" title="Highlight pink"><span class="dot pink"></span></button>
+  <button class="dot-btn" data-color="purple" title="Highlight purple"><span class="dot purple"></span></button>
+  <button class="tool" id="sel-note" title="Highlight and add note"><svg class="icon"><use href="#i-note"/></svg></button>
+</div>
+
+<div class="popover" id="popover">
+  <div class="pop-row">
+    <div class="pop-dots" id="pop-dots"></div>
+  </div>
+  <textarea class="note" id="pop-note" placeholder="Add a note"></textarea>
+  <div class="tags" id="pop-tags"></div>
+  <div class="pop-actions">
+    <button class="menu-item" id="pop-ask"><svg class="icon"><use href="#i-quote"/></svg>Ask about this</button>
+    <button class="menu-item danger" id="pop-delete"><svg class="icon"><use href="#i-trash"/></svg>Remove</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLORS = ['yellow', 'green', 'blue', 'pink', 'purple']
+const CURRENT_CHAT = 'Bayesian vs frequentist A/B tests'
+const highlights = {
+  h1: { note: 'This is the framing to use with the PM team.', tags: ['statistics', 'experiments'], when: 'Today' },
+  h2: { note: '', tags: ['statistics'], when: 'Today' },
+  h3: { note: 'Rule of thumb, add to the experimentation doc.', tags: ['experiments'], when: 'Today' },
+}
+const otherChats = [
+  { chat: 'B-tree vs LSM for write-heavy loads', items: [
+    { color: 'blue', quote: 'LSM trees turn random writes into sequential ones by buffering in memory and flushing sorted runs, which is why they win on write-heavy workloads.', note: 'Explains why RocksDB is everywhere.', tags: ['system-design'], when: '3 days ago' },
+    { color: 'yellow', quote: 'The cost moves to reads and compaction, so measure read amplification before committing.', note: '', tags: ['system-design'], when: '3 days ago' },
+  ] },
+  { chat: 'Explain eigenvectors intuitively', items: [
+    { color: 'pink', quote: 'An eigenvector is a direction the transformation only stretches, never rotates, and the eigenvalue is how much it stretches.', note: 'Finally clicked. Revisit with the 3Blue1Brown video.', tags: ['math'], when: 'Last week' },
+  ] },
+]
+let filter = { color: null, tag: null, text: '' }
+let activeMark = null
+
+const $ = (sel) => document.querySelector(sel)
+const toast = (msg) => {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('shown')
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove('shown'), 1600)
+}
+
+const setTheme = (theme) => {
+  document.documentElement.dataset.theme = theme
+  $('#theme-btn use').setAttribute('href', theme === 'dark' ? '#i-sun' : '#i-moon')
+  try { localStorage.setItem('mock-theme', theme) } catch {}
+}
+
+const currentChatItems = () => [...document.querySelectorAll('#view-chat mark.hl')].map((m) => ({
+  id: m.dataset.id, color: m.dataset.color, quote: m.textContent, ...highlights[m.dataset.id],
+}))
+const allGroups = () => [{ chat: CURRENT_CHAT, items: currentChatItems() }, ...otherChats]
+const updateCount = () => { $('#hl-count').textContent = allGroups().reduce((s, g) => s + g.items.length, 0) }
+
+function showView(name) {
+  const isLib = name === 'highlights'
+  $('#view-chat').classList.toggle('shown', !isLib)
+  $('#view-highlights').classList.toggle('shown', isLib)
+  $('#nav-highlights').classList.toggle('active', isLib)
+  $('#nav-current').classList.toggle('active', !isLib)
+  $('#topbar-chat').style.display = isLib ? 'none' : 'contents'
+  $('#topbar-lib').style.display = isLib ? 'contents' : 'none'
+  hideFloating()
+  if (isLib) renderLibrary()
+}
+
+function matches(item) {
+  if (filter.color && item.color !== filter.color) return false
+  if (filter.tag && !item.tags.includes(filter.tag)) return false
+  const q = filter.text.toLowerCase()
+  return !q || [item.quote, item.note, item.chat].some((s) => s.toLowerCase().includes(q))
+}
+
+function renderChips() {
+  const tags = [...new Set(allGroups().flatMap((g) => g.items.flatMap((i) => i.tags)))]
+  const chip = (label, on, attrs) => `<button class="chip ${on ? 'on' : ''}" ${attrs}>${label}</button>`
+  $('#chips').innerHTML = chip('All', !filter.color && !filter.tag, 'data-all') +
+    COLORS.map((c) => chip(`<span class="dot ${c}"></span>${c[0].toUpperCase() + c.slice(1)}`, filter.color === c, `data-color="${c}"`)).join('') +
+    tags.map((t) => chip(`#${t}`, filter.tag === t, `data-tag="${t}"`)).join('')
+}
+
+function rowHtml(item) {
+  const note = item.note ? `<div class="hl-note"><svg class="icon"><use href="#i-note"/></svg><span>${item.note}</span></div>` : ''
+  const tags = item.tags.map((t) => `<span class="tag">#${t}</span>`).join('')
+  return `<div class="hl-row" data-jump="${item.id || ''}" data-chat="${item.chat}">
+    <div class="hl-bar" style="background:var(--chat-accent-${item.color})"></div>
+    <div class="hl-body"><div class="hl-quote">${item.quote}</div>${note}
+      <div class="hl-meta"><span>${item.when}</span>${tags}</div></div>
+    <div class="hl-hover">
+      <button class="icon-btn" title="Ask about this" data-ask><svg class="icon"><use href="#i-quote"/></svg></button>
+      <button class="icon-btn" title="Copy as Markdown" data-copy><svg class="icon"><use href="#i-copy"/></svg></button>
+      <button class="icon-btn" title="Open in chat"><svg class="icon"><use href="#i-arrow"/></svg></button>
+    </div></div>`
+}
+
+function renderLibrary() {
+  renderChips()
+  const groups = allGroups()
+    .map((g) => ({ ...g, items: g.items.map((i) => ({ ...i, chat: g.chat })).filter(matches) }))
+    .filter((g) => g.items.length)
+  $('#groups').innerHTML = groups.length
+    ? groups.map((g) => `<div class="group">
+        <div class="group-head"><a href="#" data-chat="${g.chat}">${g.chat}</a><span>${g.items.length}</span></div>
+        ${g.items.map(rowHtml).join('')}</div>`).join('')
+    : '<div class="empty">No highlights match this filter.</div>'
+}
+
+function jumpTo(id, chat) {
+  if (!id) { toast(`Opens "${chat}" at the passage`); return }
+  showView('chat')
+  const mark = document.querySelector(`mark.hl[data-id="${id}"]`)
+  mark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  mark.classList.remove('flash'); void mark.offsetWidth; mark.classList.add('flash')
+}
+
+const hideFloating = () => ['#sel-bar', '#popover', '#export-menu'].forEach((s) => $(s).classList.remove('shown'))
+
+function selectionInAnswer() {
+  const sel = getSelection()
+  if (!sel.rangeCount || sel.isCollapsed || !sel.toString().trim()) return null
+  const range = sel.getRangeAt(0)
+  const node = range.commonAncestorContainer
+  const el = node.nodeType === 1 ? node : node.parentElement
+  return el.closest('.prose') ? range : null
+}
+
+function place(el, left, top) {
+  el.classList.add('shown')
+  el.style.left = `${Math.min(Math.max(8, left), innerWidth - el.offsetWidth - 8)}px`
+  el.style.top = `${top}px`
+}
+
+function showSelectionBar(range) {
+  const first = range.getClientRects()[0] ?? range.getBoundingClientRect()
+  const bar = $('#sel-bar')
+  bar.classList.add('shown')
+  place(bar, first.left - 2, Math.max(8, first.top - bar.offsetHeight - 6))
+}
+
+function createHighlight(color, withNote) {
+  const range = selectionInAnswer()
+  if (!range) return
+  const mark = document.createElement('mark')
+  const id = `h${Date.now()}`
+  Object.assign(mark, { className: 'hl' }); mark.dataset.color = color; mark.dataset.id = id
+  try { range.surroundContents(mark) } catch { toast('In the mockup, select within one paragraph'); return }
+  highlights[id] = { note: '', tags: [], when: 'Just now' }
+  getSelection().removeAllRanges()
+  hideFloating(); updateCount()
+  if (withNote) openPopover(mark); else toast('Highlight saved')
+}
+
+function openPopover(mark) {
+  activeMark = mark
+  const data = highlights[mark.dataset.id]
+  $('#pop-dots').innerHTML = COLORS.map((c) => `<button class="dot-btn ${c === mark.dataset.color ? 'selected' : ''}" data-recolor="${c}"><span class="dot ${c}"></span></button>`).join('')
+  $('#pop-note').value = data.note
+  renderPopTags()
+  const pop = $('#popover'); pop.classList.add('shown')
+  const r = mark.getClientRects()[mark.getClientRects().length - 1]
+  const below = r.bottom + 8
+  place(pop, r.left, below + pop.offsetHeight > innerHeight ? r.top - pop.offsetHeight - 8 : below)
+  if (!data.note) $('#pop-note').focus()
+}
+
+function renderPopTags() {
+  const data = highlights[activeMark.dataset.id]
+  $('#pop-tags').innerHTML = data.tags.map((t) => `<span class="tag">#${t}</span>`).join('') + '<input class="tag-input" id="tag-input" placeholder="Add tag">'
+}
+
+const SINGLE_LINE_HEIGHT = 30
+const syncComposer = () => {
+  const hasQuote = $('#quote-chip').classList.contains('shown')
+  $('#composer-box').classList.toggle('expanded', hasQuote || $('#composer').scrollHeight > SINGLE_LINE_HEIGHT)
+}
+
+function askAbout(quote, note) {
+  showView('chat')
+  $('#quote-text').textContent = quote
+  $('#quote-chip').classList.add('shown')
+  const c = $('#composer')
+  c.textContent = note
+  syncComposer()
+  c.focus()
+  const r = document.createRange(); r.selectNodeContents(c); r.collapse(false)
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r)
+}
+
+const clickHandlers = [
+  ['#theme-btn', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark')],
+  ['[data-nav]', (el) => showView(el.dataset.nav)],
+  ['.sel-bar .dot-btn', (el) => createHighlight(el.dataset.color, false)],
+  ['#sel-note', () => createHighlight('yellow', true)],
+  ['#quote-clear', () => { $('#quote-chip').classList.remove('shown'); syncComposer() }],
+  ['#sel-ask', () => { const q = getSelection().toString(); hideFloating(); askAbout(q, '') }],
+  ['[data-recolor]', (el) => { activeMark.dataset.color = el.dataset.recolor; openPopover(activeMark) }],
+  ['#pop-delete', () => { delete highlights[activeMark.dataset.id]; activeMark.replaceWith(...activeMark.childNodes); hideFloating(); updateCount(); toast('Highlight removed') }],
+  ['#pop-ask', () => { const q = activeMark.textContent; const n = highlights[activeMark.dataset.id].note; hideFloating(); askAbout(q, n) }],
+  ['#export-btn', () => $('#export-menu').classList.toggle('shown')],
+  ['#export-menu .menu-item', () => { hideFloating(); toast('Export downloaded') }],
+  ['#restore-btn', () => toast('3 highlights restored')],
+  ['.chip', (el) => {
+    if (el.hasAttribute('data-all')) filter = { ...filter, color: null, tag: null }
+    if (el.dataset.color) filter = { ...filter, color: filter.color === el.dataset.color ? null : el.dataset.color }
+    if (el.dataset.tag) filter = { ...filter, tag: filter.tag === el.dataset.tag ? null : el.dataset.tag }
+    renderLibrary()
+  }],
+  ['[data-copy]', () => toast('Copied as Markdown')],
+  ['[data-ask]', (el) => { const row = el.closest('.hl-row'); askAbout(row.querySelector('.hl-quote').textContent, row.querySelector('.hl-note')?.textContent ?? '') }],
+  ['.hl-row', (el) => jumpTo(el.dataset.jump, el.dataset.chat)],
+  ['.group-head a[data-chat]', (el) => el.dataset.chat === CURRENT_CHAT ? showView('chat') : toast(`Opens "${el.dataset.chat}"`)],
+  ['#view-chat mark.hl', (el) => { if (getSelection().isCollapsed) openPopover(el) }],
+]
+
+document.addEventListener('click', (e) => {
+  const hit = clickHandlers.find(([sel]) => e.target.closest(sel))
+  if (hit) { e.preventDefault(); hit[1](e.target.closest(hit[0])); return }
+  if (!e.target.closest('.popover, .sel-bar, .menu')) { $('#popover').classList.remove('shown'); $('#export-menu').classList.remove('shown') }
+})
+document.addEventListener('mouseup', (e) => {
+  if (e.target.closest('.sel-bar, .popover, .menu')) return
+  requestAnimationFrame(() => {
+    const range = selectionInAnswer()
+    if (range) { $('#popover').classList.remove('shown'); showSelectionBar(range) } else $('#sel-bar').classList.remove('shown')
+  })
+})
+$('#pop-note').addEventListener('input', (e) => {
+  highlights[activeMark.dataset.id].note = e.target.value
+  activeMark.classList.toggle('has-note', Boolean(e.target.value.trim()))
+})
+$('#pop-tags').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.value.trim()) return
+  const tag = e.target.value.trim().toLowerCase().replace(/^#/, '').replace(/\s+/g, '-')
+  const data = highlights[activeMark.dataset.id]
+  if (!data.tags.includes(tag)) data.tags.push(tag)
+  renderPopTags(); $('#tag-input').focus()
+})
+$('#composer').addEventListener('input', syncComposer)
+$('#search').addEventListener('input', (e) => { filter = { ...filter, text: e.target.value }; renderLibrary() })
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideFloating() })
+$('#view-chat').addEventListener('scroll', () => { $('#sel-bar').classList.remove('shown'); $('#popover').classList.remove('shown') })
+
+setTheme(document.documentElement.dataset.theme)
+updateCount()
+const params = new URLSearchParams(location.search)
+if (params.get('theme')) setTheme(params.get('theme'))
+if (location.hash === '#highlights') showView('highlights')
+if (params.get('ask')) askAbout('An informative prior built from past experiments acts like extra data', 'Hello world')
+</script>
+</body>
+</html>

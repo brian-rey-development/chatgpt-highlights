@@ -1,0 +1,28 @@
+.hl-trashed {
+  margin-bottom: 8px;
+}
+
+.hl-trashed__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  color: var(--hl-text-secondary);
+  font-size: var(--hl-text-sm);
+}
+
+.hl-trashed__title {
+  color: var(--hl-text);
+  font-weight: 500;
+}
+
+.hl-trashed__when {
+  flex: 1;
+}
+
+.hl-trashed__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

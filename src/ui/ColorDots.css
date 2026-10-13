@@ -1,0 +1,32 @@
+.hl-dots {
+  display: flex;
+  gap: 2px;
+}
+
+.hl-dots__button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 28px;
+  border-radius: var(--hl-radius-control);
+}
+
+.hl-dots__button:hover {
+  background: var(--hl-hover);
+}
+
+.hl-dots--md .hl-dots__button {
+  width: 28px;
+  height: 28px;
+}
+
+.hl-dots--md .hl-dot {
+  width: 16px;
+  height: 16px;
+}
+
+.hl-dots__button[aria-pressed="true"] .hl-dot {
+  box-shadow:
+    0 0 0 2px var(--hl-elevated),
+    0 0 0 3.5px var(--hl-text);
+}

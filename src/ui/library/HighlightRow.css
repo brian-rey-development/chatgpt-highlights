@@ -1,0 +1,96 @@
+.hl-row {
+  position: relative;
+  border-radius: var(--hl-radius-card);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
+}
+
+.hl-row:hover,
+.hl-row:focus-within {
+  background: var(--hl-hover);
+}
+
+.hl-row__main {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--hl-radius-card);
+  text-align: left;
+}
+
+button.hl-row__main {
+  cursor: pointer;
+}
+
+div.hl-row__main {
+  cursor: default;
+}
+
+.hl-row__bar {
+  flex-shrink: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--hl-ink);
+}
+
+.hl-row__body {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+
+.hl-row__quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  line-height: 24px;
+}
+
+.hl-row__note {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--hl-text-secondary);
+  font-size: var(--hl-text-sm);
+  line-height: 20px;
+}
+
+.hl-row__note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.hl-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--hl-text-tertiary);
+  font-size: var(--hl-text-xs);
+}
+
+.hl-row__orphan {
+  color: var(--hl-danger);
+}
+
+.hl-row__actions {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: none;
+}
+
+.hl-row:hover .hl-row__actions,
+.hl-row:focus-within .hl-row__actions {
+  display: flex;
+}
+
+.hl-row__actions .hl-icon-button {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--hl-radius-pill);
+}

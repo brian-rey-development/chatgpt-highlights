@@ -1,0 +1,17 @@
+.hl-export {
+  position: relative;
+}
+
+.hl-menu {
+  position: absolute;
+  z-index: var(--hl-layer-popover);
+  top: 100%;
+  right: 0;
+  min-width: 240px;
+  margin-top: 4px;
+  padding: 6px;
+  border-radius: var(--hl-radius-panel);
+  background: var(--hl-elevated);
+  box-shadow: var(--hl-shadow);
+  font-size: var(--hl-text-sm);
+}

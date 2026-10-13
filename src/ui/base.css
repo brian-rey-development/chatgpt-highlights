@@ -1,0 +1,141 @@
+/* all: initial on the host, so set text styles here */
+.hl-overlay {
+  font-family: var(--hl-font);
+  color: var(--hl-text);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+[data-color="yellow"] {
+  --hl-ink: var(--hl-yellow);
+}
+
+[data-color="green"] {
+  --hl-ink: var(--hl-green);
+}
+
+[data-color="blue"] {
+  --hl-ink: var(--hl-blue);
+}
+
+[data-color="pink"] {
+  --hl-ink: var(--hl-pink);
+}
+
+[data-color="purple"] {
+  --hl-ink: var(--hl-purple);
+}
+
+.hl-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--hl-ink);
+}
+
+.hl-dot--small {
+  width: 10px;
+  height: 10px;
+}
+
+.hl-icon-button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--hl-radius-control);
+  color: var(--hl-text-secondary);
+}
+
+.hl-icon-button:hover {
+  background: var(--hl-hover);
+  color: var(--hl-text);
+}
+
+.hl-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--hl-radius-item);
+  font-size: var(--hl-text-sm);
+  text-align: left;
+}
+
+.hl-menu-item:hover {
+  background: var(--hl-hover);
+}
+
+.hl-menu-item--danger {
+  color: var(--hl-danger);
+}
+
+.hl-tag {
+  padding: 2px 8px;
+  border-radius: var(--hl-radius-round);
+  background: var(--hl-hover);
+  color: var(--hl-text-secondary);
+  font-size: var(--hl-text-xs);
+  line-height: 16px;
+}
+
+.hl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hl-border);
+  border-radius: var(--hl-radius-round);
+  color: var(--hl-text-secondary);
+  font-size: var(--hl-text-sm);
+  line-height: 20px;
+}
+
+.hl-chip:hover {
+  background: var(--hl-hover);
+}
+
+.hl-chip--on,
+.hl-chip--on:hover {
+  border-color: var(--hl-text);
+  background: var(--hl-text);
+  color: var(--hl-text-inverse);
+}
+
+.hl-chip--outline {
+  color: var(--hl-text);
+}
+
+.hl-chip--small {
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--hl-text-xs);
+}
+
+.hl-chip--danger {
+  border-color: var(--hl-danger);
+  color: var(--hl-danger);
+}

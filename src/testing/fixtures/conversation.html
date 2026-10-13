@@ -1,0 +1,45 @@
+<main id="main">
+  <div class="flex flex-col text-sm">
+    <article data-turn-key="turn-1" data-turn="user">
+      <h4 class="sr-only" data-conversation-role="user">You said:</h4>
+      <div data-chatgpt-search-message-ids="user-1">
+        <div data-user-message-bubble=""><div class="whitespace-pre-wrap">How do tides work?</div></div>
+      </div>
+    </article>
+    <article data-turn-key="turn-2" data-turn="assistant">
+      <h4 class="sr-only" data-conversation-role="assistant">ChatGPT said:</h4>
+      <div data-chatgpt-search-message-ids="assistant-1">
+        <div data-chatgpt-selection-message-id="assistant-1" data-chatgpt-selection-conversation-id="68ec1f00-0000-4000-8000-000000000001">
+          <div class="markdown prose" data-markdown-text-style="" data-selected-text-overlay-target="">
+            <p>Tides come from the <strong>gravitational pull</strong> of the moon and the sun.</p>
+            <ul>
+              <li>Spring tides happen when the sun and moon align.</li>
+              <li>Neap tides happen when they sit at right angles.</li>
+            </ul>
+            <p>The force scales as <span class="katex"><span class="katex-mathml"><math><mi>F</mi></math></span><span class="katex-html" aria-hidden="true">F</span></span> over distance cubed.</p>
+            <div data-markdown-copy="code-block" class="relative w-full rounded-(--radius-3xl-base) border"><div data-markdown-copy="exclude" class="flex items-center select-none sticky"><svg aria-hidden="true" focusable="false"></svg><div class="min-w-0 flex-1 truncate">python</div><div class="ms-auto flex items-center"><button type="button" aria-label="Copy">Copy</button></div></div><div dir="ltr" class="overflow-auto"><code class="whitespace-pre! block">ratio = moon / sun</code></div></div>
+            <p>The gravitational pull is strongest on the side facing the moon.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+    <article data-turn-key="turn-3" data-turn="assistant">
+      <h4 class="sr-only" data-conversation-role="assistant">ChatGPT said:</h4>
+      <div data-chatgpt-search-message-ids="assistant-2"></div>
+    </article>
+    <article data-turn-key="turn-4" data-turn="assistant">
+      <h4 class="sr-only" data-conversation-role="assistant">ChatGPT said:</h4>
+      <div data-chatgpt-search-message-ids="assistant-3">
+        <div data-chatgpt-selection-message-id="assistant-3" data-chatgpt-selection-conversation-id="68ec1f00-0000-4000-8000-000000000001">
+          <div class="markdown prose" data-markdown-text-style="" data-selected-text-overlay-target="">
+            <p>High tide arrives about fifty minutes later each day.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+  </div>
+  <form>
+    <div class="ProseMirror" contenteditable="true" role="textbox" data-composer-markdown=""><p></p></div>
+    <button data-testid="send-button" aria-label="Send prompt">Send</button>
+  </form>
+</main>

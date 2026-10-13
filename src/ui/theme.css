@@ -1,0 +1,51 @@
+:host {
+  --hl-font: var(
+    --font-ui-family,
+    -apple-system-body,
+    ui-sans-serif,
+    -apple-system,
+    system-ui,
+    "Segoe UI",
+    Helvetica,
+    "Apple Color Emoji",
+    Arial,
+    sans-serif,
+    "Segoe UI Emoji",
+    "Segoe UI Symbol"
+  );
+  --hl-surface: var(--color-surface, #fcfcfc);
+  --hl-elevated: var(--color-surface-elevated-secondary, #ffffff);
+  --hl-text: var(--color-text, #0d0d0d);
+  --hl-text-secondary: var(--color-text-secondary, #5d5d5d);
+  --hl-text-tertiary: var(--color-text-tertiary, #8f8f8f);
+  --hl-border: var(--color-border, #0000001a);
+  --hl-border-subtle: var(--color-border-subtle, #0000000d);
+  --hl-border-strong: var(--color-border-strong, #00000026);
+  --hl-border-pill: color-mix(in srgb, var(--hl-border) 70%, transparent);
+  --hl-hover: var(--color-background-primary-soft-hover, #0000000d);
+  --hl-field: var(--composer-background-color, #ffffff);
+  --hl-shadow:
+    var(--shadow-lg, 0 4px 8px -2px #0000001a), 0 0 0 0.5px var(--shadow-hairline-color, #0000001a);
+  --hl-shadow-pill: var(--shadow-lg, 0 4px 8px -2px #0000001a);
+  --hl-text-sm: var(--text-sm, 14px);
+  --hl-text-xs: var(--text-xs, 12px);
+  --hl-text-base: var(--text-base, 16px);
+  --hl-text-2xl: var(--text-2xl, 24px);
+  --hl-yellow: var(--color-chat-accent-yellow, #ffcc38);
+  --hl-green: var(--color-chat-accent-green, #04bb9f);
+  --hl-blue: var(--color-chat-accent-blue, #3566f0);
+  --hl-pink: var(--color-chat-accent-pink, #fa70ab);
+  --hl-purple: var(--color-chat-accent-purple, #a25bff);
+  --hl-danger: var(--color-text-danger, #e02e2a);
+  --hl-text-inverse: var(--color-text-inverse, #ffffff);
+  --hl-radius-control: 6px;
+  --hl-radius-pill: 8px;
+  --hl-radius-item: 10px;
+  --hl-radius-card: 12px;
+  --hl-radius-panel: 16px;
+  --hl-radius-round: 9999px;
+  --hl-layer-library: 40;
+  --hl-layer-pill: 50;
+  --hl-layer-popover: 60;
+  --hl-layer-toast: 80;
+}

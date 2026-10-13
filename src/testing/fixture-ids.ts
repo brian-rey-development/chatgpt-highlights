@@ -1,0 +1,11 @@
+export const FIXTURE_CONVERSATION_ID = '68ec1f00-0000-4000-8000-000000000001'
+export const FIXTURE_CHAT_PATH = `/c/${FIXTURE_CONVERSATION_ID}`
+export const OTHER_CONVERSATION_ID = '68ec1f00-0000-4000-8000-000000000002'
+export const STATUS_UNAUTHORIZED = 401
+export const FIRST_ANSWER_ID = 'assistant-1'
+export const LAST_ANSWER_ID = 'assistant-3'
+export const NEW_ANSWER_ID = 'assistant-9'
+export const PULL_QUOTE = 'gravitational pull'
+export const SPRING_QUOTE = 'Spring tides'
+export const HIGH_TIDE_QUOTE = 'High tide'
+export const GONE_QUOTE = 'text that is gone'

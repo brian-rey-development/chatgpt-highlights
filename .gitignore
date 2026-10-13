@@ -1,0 +1,7 @@
+node_modules
+dist
+.wxt
+coverage
+test-results
+playwright-report
+web-ext-artifacts

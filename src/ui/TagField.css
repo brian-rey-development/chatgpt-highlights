@@ -1,0 +1,21 @@
+.hl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.hl-tags__input {
+  width: 100px;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--hl-text);
+  font-size: var(--hl-text-xs);
+  outline: none;
+}
+
+.hl-tags__input::placeholder {
+  color: var(--hl-text-tertiary);
+}

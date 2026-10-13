@@ -1,0 +1,13 @@
+.hl-pill {
+  position: fixed;
+  z-index: var(--hl-layer-pill);
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  border: 1px solid var(--hl-border-pill);
+  border-radius: var(--hl-radius-pill);
+  background: var(--hl-elevated);
+  box-shadow: var(--hl-shadow-pill);
+  font-size: var(--hl-text-sm);
+  line-height: 20px;
+}

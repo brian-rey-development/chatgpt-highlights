@@ -1,0 +1,103 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["**"] },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" } },
+  "linter": {
+    "enabled": true,
+    "includes": ["**", "!**/*.html"],
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 6 }
+        },
+        "noExcessiveLinesPerFunction": {
+          "level": "error",
+          "options": { "maxLines": 20, "skipBlankLines": true }
+        },
+        "useMaxParams": { "level": "error", "options": { "max": 3 } },
+        "noForEach": "error",
+        "noUselessStringConcat": "error",
+        "noUselessUndefined": "error",
+        "noImplicitCoercions": "error",
+        "useIndexOf": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "noNestedTernary": "error",
+        "noExcessiveLinesPerFile": {
+          "level": "error",
+          "options": { "maxLines": 200, "skipBlankLines": true }
+        },
+        "noMagicNumbers": "error",
+        "noParameterAssign": "error",
+        "noUselessElse": "error",
+        "noNegationElse": "error",
+        "useCollapsedIf": "error",
+        "useCollapsedElseIf": "error",
+        "noMultiAssign": "error",
+        "noDefaultExport": "error",
+        "noEnum": "error",
+        "noNamespace": "error",
+        "noShoutyConstants": "error",
+        "useConsistentArrayType": { "level": "error", "options": { "syntax": "shorthand" } },
+        "useImportType": "error",
+        "useExportType": "error",
+        "useTemplate": "error",
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": { "filenameCases": ["kebab-case", "PascalCase"], "requireAscii": true }
+        }
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": "error",
+        "noShadow": "error",
+        "noImportCycles": "error",
+        "noTsIgnore": "error",
+        "noEmptyBlockStatements": "error",
+        "noNestedPromises": "error",
+        "noFocusedTests": "error",
+        "noSkippedTests": "error",
+        "noExportsInTest": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "noUnusedFunctionParameters": "error",
+        "noNestedComponentDefinitions": "error"
+      },
+      "nursery": {
+        "noExcessiveNestedCallbacks": { "level": "error", "options": { "max": 3 } },
+        "useConsistentFunctionStyle": {
+          "level": "error",
+          "options": { "style": "expression", "allowArrowFunctions": true }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "src/testing/**", "e2e/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off",
+            "noMagicNumbers": "off",
+            "noExcessiveLinesPerFile": "off"
+          },
+          "complexity": { "noExcessiveLinesPerFunction": "off" },
+          "nursery": { "noExcessiveNestedCallbacks": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["*.config.ts", "e2e/*.config.ts", "src/entrypoints/**/index.ts"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    }
+  ],
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}
