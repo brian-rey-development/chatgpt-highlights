@@ -69,12 +69,17 @@ const settleOrphans = (store: Store, anchored: readonly Anchored[]): void => {
 export const anchorUnits = (
   { store, painter }: AnchorTarget,
   units: Iterable<MessageUnit>,
-): void => {
+): Element[] => {
   const index = indexByMessage(store.highlights.value)
   const anchored: Anchored[] = []
+  const missed: Element[] = []
   for (const unit of units) {
     const highlights = index.get(unit.messageId)
-    if (highlights) anchored.push(...anchorUnit(painter, unit, highlights))
+    if (!highlights) continue
+    const placed = anchorUnit(painter, unit, highlights)
+    anchored.push(...placed)
+    if (placed.some(({ range }) => !range)) missed.push(unit.element)
   }
   settleOrphans(store, anchored)
+  return missed
 }

@@ -91,6 +91,24 @@ describe('createWatcher', () => {
     expect(lastFlush().units.size).toBe(1)
   })
 
+  it('reports the unit when a node inside it is hidden or shown to assistive tech', async () => {
+    start()
+    const paragraph = requireElement(FIRST_PARAGRAPH, firstUnit())
+    paragraph.setAttribute('aria-hidden', 'true')
+    await nextFrame()
+    expect([...lastFlush().units]).toEqual([firstUnit()])
+    paragraph.removeAttribute('aria-hidden')
+    await nextFrame()
+    expect([...lastFlush().units]).toEqual([firstUnit()])
+  })
+
+  it('stays quiet for attribute changes that cannot alter what a message says', async () => {
+    start()
+    requireElement(FIRST_PARAGRAPH, firstUnit()).className = 'restyled'
+    await nextFrame()
+    expect(onFlush).not.toHaveBeenCalled()
+  })
+
   it('reports a unit mounted inside a new turn', async () => {
     start()
     const added = appendAnsweredTurn(NEW_ANSWER_ID)

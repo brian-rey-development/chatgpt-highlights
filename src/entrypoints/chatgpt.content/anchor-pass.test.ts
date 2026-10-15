@@ -9,6 +9,7 @@ import {
   countPaintedRanges,
   FIRST_ANSWER_ID,
   GONE_QUOTE,
+  HIGH_TIDE_QUOTE,
   highlightIn,
   installFakeHighlightApi,
   LAST_ANSWER_ID,
@@ -122,6 +123,22 @@ describe('anchorUnits', () => {
     load(highlightIn(FIRST_ANSWER_ID, PULL_QUOTE))
     anchorUnits({ store, painter }, [requireUnit(FIRST_ANSWER_ID)])
     expect(store.orphanIds.value).toBe(orphans)
+  })
+
+  it('returns the units that still hold a highlight it could not place', () => {
+    const lost = highlightIn(FIRST_ANSWER_ID, PULL_QUOTE, { id: 'lost' })
+    load(
+      { ...lost, quote: { ...lost.quote, exact: GONE_QUOTE } },
+      highlightIn(LAST_ANSWER_ID, HIGH_TIDE_QUOTE),
+    )
+    const units = [FIRST_ANSWER_ID, LAST_ANSWER_ID].map(requireUnit)
+    const missed = anchorUnits({ store, painter }, units)
+    expect(missed).toEqual([requireUnit(FIRST_ANSWER_ID).element])
+  })
+
+  it('returns nothing when every highlight was placed', () => {
+    load(highlightIn(FIRST_ANSWER_ID, PULL_QUOTE))
+    expect(anchorUnits({ store, painter }, [requireUnit(FIRST_ANSWER_ID)])).toEqual([])
   })
 
   it('does nothing for a chat without highlights', () => {

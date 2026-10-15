@@ -9,6 +9,9 @@ export const COMPOSER_FORM = 'form'
 export const TEST_ID_ATTR = 'data-testid'
 export const LABEL_ATTR = 'aria-label'
 export const GENERATION_ATTRS = [TEST_ID_ATTR, LABEL_ATTR] as const
+export const ARIA_HIDDEN_ATTR = 'aria-hidden'
+export const HIDDEN_ATTR = 'hidden'
+export const READABILITY_ATTRS = [ARIA_HIDDEN_ATTR, HIDDEN_ATTR] as const
 export const STOP_BUTTON_TEST_ID = 'stop-button'
 export const STOP_BUTTON = [
   `button[${TEST_ID_ATTR}="${STOP_BUTTON_TEST_ID}"]`,
@@ -34,7 +37,7 @@ export const COPY_EXCLUDED = `[${MARKDOWN_COPY_ATTR}="exclude"]`
 export const IGNORED_TEXT_SELECTOR = [
   'button',
   'svg',
-  '[aria-hidden="true"]:not(.katex-html)',
+  `[${ARIA_HIDDEN_ATTR}="true"]:not(.katex-html)`,
   '.katex-mathml',
   COPY_EXCLUDED,
   'script',

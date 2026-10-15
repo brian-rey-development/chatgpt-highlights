@@ -2,6 +2,7 @@ import {
   composerForm,
   GENERATION_ATTRS,
   MESSAGE_UNIT,
+  READABILITY_ATTRS,
   threadRoot,
   unitElementOf,
   unitElements,
@@ -26,7 +27,13 @@ interface WatcherState {
   wantsAllUnits: boolean
 }
 
-const THREAD_OPTIONS = { childList: true, characterData: true, subtree: true } as const
+// aria-hidden and hidden decide which text a message exposes, and ChatGPT flips them as it renders
+const THREAD_OPTIONS: MutationObserverInit = {
+  childList: true,
+  characterData: true,
+  subtree: true,
+  attributeFilter: [...READABILITY_ATTRS],
+}
 const SPINE_OPTIONS = { childList: true } as const
 const COMPOSER_OPTIONS: MutationObserverInit = {
   childList: true,

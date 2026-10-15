@@ -3,7 +3,7 @@ import { h } from 'preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as anchoring from '@/anchoring'
 import * as chatgpt from '@/chatgpt'
-import { LIBRARY_ADDRESS, TEXT_ROOT } from '@/chatgpt'
+import { LIBRARY_ADDRESS, MARKDOWN_COPY_ATTR, TEXT_ROOT } from '@/chatgpt'
 import { err, ok } from '@/errors'
 import { ANCHOR_MEASURE, type ConversationHighlights, fieldOf, type Highlight } from '@/model'
 import { createPainter, type Painter } from '@/painter'
@@ -39,6 +39,7 @@ import {
   PULL_QUOTE,
   paintedTexts,
   requireElement,
+  requireText,
   requireUnit,
   SPRING_QUOTE,
   settle,
@@ -50,8 +51,11 @@ import { App } from '@/ui'
 import * as anchorPass from './anchor-pass'
 import { createHighlightActions } from './highlight-actions'
 import type { Stop } from './listen'
-import { type SessionHandle, startSession } from './session'
+import { RETRY_DELAYS_MS, type SessionHandle, startSession } from './session'
 import { createStore, LOAD_FAILED_MESSAGE, type Runtime, type Store } from './store'
+
+const EXCLUDED = 'exclude'
+const STREAMED_CHUNKS = 20
 
 let registry: HighlightRegistry
 let painter: Painter
@@ -446,36 +450,62 @@ describe('later flushes', () => {
 
 describe('while a response is generating', () => {
   beforeEach(() => {
-    stock(FIXTURE_CONVERSATION_ID, highlightIn(FIRST_ANSWER_ID, PULL_QUOTE))
+    stock(
+      FIXTURE_CONVERSATION_ID,
+      highlightIn(FIRST_ANSWER_ID, PULL_QUOTE),
+      highlightIn(LAST_ANSWER_ID, HIGH_TIDE_QUOTE),
+    )
   })
 
-  it('anchors nothing until it ends, then anchors every mounted unit', async () => {
+  it('anchors the finished messages at once and holds back the one being written', async () => {
     const generating = vi.spyOn(chatgpt, 'isGenerating').mockReturnValue(true)
     await begin()
-    await touch()
-    expect(painter.painted.size).toBe(0)
+    expect(paintedTexts(painter)).toEqual([PULL_QUOTE])
     generating.mockReturnValue(false)
     await touch()
-    expect(paintedTexts(painter)).toEqual([PULL_QUOTE])
+    expect(paintedTexts(painter).toSorted()).toEqual([HIGH_TIDE_QUOTE, PULL_QUOTE])
   })
 
-  it('anchors what changed during generation as soon as the stop button goes', async () => {
+  it('re-anchors an older message rebuilt mid-stream without waiting for the end', async () => {
+    await begin()
+    vi.spyOn(chatgpt, 'isGenerating').mockReturnValue(true)
+    const original = requireUnit(FIRST_ANSWER_ID).element
+    const replacement = cloneElement(original)
+    original.replaceWith(replacement)
+    await flush()
+    const range = painter.painted.get(`${FIRST_ANSWER_ID}-${PULL_QUOTE}`)?.range
+    expect(replacement.contains(range?.startContainer ?? null)).toBe(true)
+  })
+
+  it('never reads the message being written however much text streams into it', async () => {
+    await begin()
+    vi.spyOn(chatgpt, 'isGenerating').mockReturnValue(true)
+    const read = vi.spyOn(anchoring, 'readMessageText')
+    const text = requireText(requireElement('p', requireUnit(LAST_ANSWER_ID).element))
+    for (let chunk = 0; chunk < STREAMED_CHUNKS; chunk += 1) {
+      text.data = `${HIGH_TIDE_QUOTE} ${chunk}`
+      await flush()
+    }
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('anchors a rebuilt streaming message once the stop button goes', async () => {
     const stopButton = addStopButton()
     await begin()
-    const original = requireUnit(FIRST_ANSWER_ID).element
+    const original = requireUnit(LAST_ANSWER_ID).element
     original.replaceWith(cloneElement(original))
     await flush()
-    expect(painter.painted.size).toBe(0)
+    expect(paintedTexts(painter)).toEqual([PULL_QUOTE])
     stopButton.remove()
     await flush()
-    expect(paintedTexts(painter)).toEqual([PULL_QUOTE])
+    expect(paintedTexts(painter).toSorted()).toEqual([HIGH_TIDE_QUOTE, PULL_QUOTE])
   })
 
-  it('keeps the units touched meanwhile for the first flush after it ends', async () => {
+  it('keeps the streaming unit for the first flush after it ends', async () => {
     await begin()
     const generating = vi.spyOn(chatgpt, 'isGenerating').mockReturnValue(true)
     const read = vi.spyOn(anchoring, 'readMessageText')
-    const original = requireUnit(FIRST_ANSWER_ID).element
+    const original = requireUnit(LAST_ANSWER_ID).element
     requireElement('p', original).append(document.createElement('em'))
     const replacement = cloneElement(original)
     original.replaceWith(replacement)
@@ -484,8 +514,79 @@ describe('while a response is generating', () => {
     generating.mockReturnValue(false)
     await touch()
     expect(read).toHaveBeenCalledTimes(1)
-    const range = painter.painted.get(`${FIRST_ANSWER_ID}-${PULL_QUOTE}`)?.range
+    const range = painter.painted.get(`${LAST_ANSWER_ID}-${HIGH_TIDE_QUOTE}`)?.range
     expect(replacement.contains(range?.startContainer ?? null)).toBe(true)
+  })
+})
+
+describe('highlights that cannot be placed yet', () => {
+  const excludeFromText = (): Element => {
+    const paragraph = requireElement('p', requireUnit(LAST_ANSWER_ID).element)
+    paragraph.setAttribute(MARKDOWN_COPY_ATTR, EXCLUDED)
+    return paragraph
+  }
+
+  const stockHiddenTide = (): { tide: Highlight; paragraph: Element } => {
+    const tide = highlightIn(LAST_ANSWER_ID, HIGH_TIDE_QUOTE)
+    stock(FIXTURE_CONVERSATION_ID, tide)
+    return { tide, paragraph: excludeFromText() }
+  }
+
+  it('retries and paints one once its text becomes readable', async () => {
+    const { tide, paragraph } = stockHiddenTide()
+    await begin()
+    expect([...store.orphanIds.value]).toEqual([tide.id])
+    paragraph.removeAttribute(MARKDOWN_COPY_ATTR)
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0])
+    expect(paintedTexts(painter)).toEqual([HIGH_TIDE_QUOTE])
+    expect(store.orphanIds.value.size).toBe(0)
+  })
+
+  it('gives up after a bounded number of tries and leaves no timer behind', async () => {
+    const { tide } = stockHiddenTide()
+    await begin()
+    const read = vi.spyOn(anchoring, 'readMessageText')
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS.reduce((sum, delay) => sum + delay, 0) * 2)
+    expect(read).toHaveBeenCalledTimes(RETRY_DELAYS_MS.length)
+    expect(vi.getTimerCount()).toBe(0)
+    expect([...store.orphanIds.value]).toEqual([tide.id])
+  })
+
+  it('gives a message that changes again a fresh set of tries', async () => {
+    const { paragraph } = stockHiddenTide()
+    await begin()
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS.reduce((sum, delay) => sum + delay, 0) * 2)
+    expect(vi.getTimerCount()).toBe(0)
+    paragraph.append(document.createElement('em'))
+    await flush()
+    expect(vi.getTimerCount()).toBe(1)
+  })
+
+  it('drops the retry of a message that left the page meanwhile', async () => {
+    stockHiddenTide()
+    await begin()
+    requireUnit(LAST_ANSWER_ID).element.remove()
+    await flush()
+    const read = vi.spyOn(anchoring, 'readMessageText')
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0])
+    expect(read).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('stops retrying when the session stops', async () => {
+    stockHiddenTide()
+    const { stop } = await begin()
+    expect(vi.getTimerCount()).toBe(1)
+    stop()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('drops the retries of the conversation it left', async () => {
+    stockHiddenTide()
+    await begin()
+    visit(`/c/${OTHER_CONVERSATION_ID}`)
+    await touch()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
 
