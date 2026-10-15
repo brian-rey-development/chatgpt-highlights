@@ -10,5 +10,6 @@
     "noPropertyAccessFromIndexSignature": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact"
-  }
+  },
+  "exclude": ["video", "dist", "node_modules"]
 }
