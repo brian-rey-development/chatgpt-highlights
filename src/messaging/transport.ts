@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser'
 import { err, messageOf, type Result, toAppError } from '@/errors'
-import { fieldOf } from '@/model'
+import { fieldOf, MINUTE_MS } from '@/model'
 import type { Route } from './router'
 import type { AppEvent, Request, RequestOf, RequestType, Responses, TabCommand } from './types'
 
@@ -12,6 +12,9 @@ const TAB_COMMAND_TYPE: TabCommand['type'] = 'library.open'
 const NO_ANSWER_REASON = 'The background did not answer'
 const TIMEOUT_REASON = 'The background took too long to answer'
 export const REQUEST_TIMEOUT_MS = 15_000
+const BACKUP_TIMEOUT_MINUTES = 5
+export const BACKUP_TIMEOUT_MS = BACKUP_TIMEOUT_MINUTES * MINUTE_MS
+const BACKUP_TYPES: ReadonlySet<RequestType> = new Set(['backup.export', 'backup.import'])
 
 type Effect = 'read' | 'write'
 
@@ -31,6 +34,9 @@ const REQUEST_EFFECTS: { [T in RequestType]: Effect } = {
 }
 
 const canRetry = ({ type }: Request): boolean => REQUEST_EFFECTS[type] === 'read'
+
+const deadlineOf = ({ type }: Request): number =>
+  BACKUP_TYPES.has(type) ? BACKUP_TIMEOUT_MS : REQUEST_TIMEOUT_MS
 
 const hasType = (message: unknown, type: string): boolean => fieldOf(message, 'type') === type
 
@@ -53,15 +59,18 @@ const isResult = (value: unknown): value is Result<unknown> => {
   )
 }
 
-const withDeadline = <T>(pending: Promise<T>): Promise<T> =>
+const withDeadline = <T>(pending: Promise<T>, deadlineMs: number): Promise<T> =>
   new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(TIMEOUT_REASON)), REQUEST_TIMEOUT_MS)
+    const timer = setTimeout(() => reject(new Error(TIMEOUT_REASON)), deadlineMs)
     pending.then(resolve, reject).finally(() => clearTimeout(timer))
   })
 
 const attempt = async (message: Request): Promise<Result<unknown> | string> => {
   try {
-    const answer: unknown = await withDeadline(browser.runtime.sendMessage(message))
+    const answer: unknown = await withDeadline(
+      browser.runtime.sendMessage(message),
+      deadlineOf(message),
+    )
     return isResult(answer) ? answer : NO_ANSWER_REASON
   } catch (error) {
     return messageOf(error)

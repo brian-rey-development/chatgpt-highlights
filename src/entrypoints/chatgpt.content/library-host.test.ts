@@ -48,7 +48,7 @@ import {
   swapMain,
   typeInOverlay,
 } from '@/testing'
-import { type LibraryHost, startLibraryHost } from './library-host'
+import { type LibraryHost, RELOAD_DELAY_MS, startLibraryHost } from './library-host'
 import { createStore, LOAD_FAILED_MESSAGE, type Store } from './store'
 
 const MAIN_BOX = new DOMRect(260, 0, 900, 700)
@@ -70,6 +70,8 @@ let snapshotCalls = 0
 let nativeCount = 0
 
 const mainElement = (): HTMLElement => requireElement<HTMLElement>(MAIN)
+
+const BURST_SIZE = 5
 
 const begin = (): LibraryHost => {
   overlayRoot = makeOverlayRoot()
@@ -644,9 +646,37 @@ describe('data.changed', () => {
   it('reloads the snapshot while the view is open', async () => {
     await opened()
     await deliverMessage(FIXTURE_DATA_CHANGED)
-    await settle()
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
     expect(background.sent('library.snapshot')).toHaveLength(2)
     expect(store.library.value?.snapshot).toEqual(EMPTY_SNAPSHOT)
+  })
+
+  it('reloads once for a burst of events', async () => {
+    await opened()
+    for (let event = 0; event < BURST_SIZE; event += 1) await deliverMessage(FIXTURE_DATA_CHANGED)
+    expect(background.sent('library.snapshot')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
+    expect(background.sent('library.snapshot')).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS * BURST_SIZE)
+    expect(background.sent('library.snapshot')).toHaveLength(2)
+  })
+
+  it('reloads again for an event that arrives after the previous reload', async () => {
+    await opened()
+    await deliverMessage(FIXTURE_DATA_CHANGED)
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
+    await deliverMessage(FIXTURE_DATA_CHANGED)
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
+    expect(background.sent('library.snapshot')).toHaveLength(3)
+  })
+
+  it('drops a reload still waiting when the view closes', async () => {
+    const started = await opened()
+    await deliverMessage(FIXTURE_DATA_CHANGED)
+    started.close()
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS * 2)
+    expect(background.sent('library.snapshot')).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('does nothing while the view is closed', async () => {
@@ -675,7 +705,7 @@ describe('when the snapshot cannot be loaded', () => {
     await opened()
     background.answerWith(() => err(OFFLINE_FAILURE))
     await deliverMessage(FIXTURE_DATA_CHANGED)
-    await settle()
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
     expect(store.toast.value?.message).toBe(LOAD_FAILED_MESSAGE)
     expect(store.library.value?.snapshot).toEqual(SNAPSHOT)
   })
@@ -691,7 +721,9 @@ describe('when the snapshot cannot be loaded', () => {
     const gates = [older, newer]
     background.answerWith(() => gates.shift()?.promise)
     await deliverMessage(FIXTURE_DATA_CHANGED)
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
     await deliverMessage(FIXTURE_DATA_CHANGED)
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS)
     newer.resolve(ok(newest))
     await settle()
     older.resolve(ok(EMPTY_SNAPSHOT))

@@ -17,6 +17,7 @@ import {
 } from '@/testing'
 import type { Route } from './router'
 import {
+  BACKUP_TIMEOUT_MS,
   broadcast,
   onEvent,
   onTabCommand,
@@ -238,6 +239,38 @@ describe('request deadline', () => {
 
     expect(await pending).toEqual(ok([]))
     expect(background.sent()).toEqual([LIST_REQUEST])
+  })
+})
+
+describe('request deadline for backups', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  const BACKUP_REQUESTS: readonly Request[] = [
+    { type: 'backup.export' },
+    { type: 'backup.import', text: '{}' },
+  ]
+
+  it.each(BACKUP_REQUESTS)('lets $type outlast the standard deadline', async (message) => {
+    const background = installFakeBackground()
+    const gate = background.hold()
+
+    const pending = request(message)
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS * 2)
+    gate.resolve(ok('done'))
+
+    expect(await pending).toEqual(ok('done'))
+  })
+
+  it.each(BACKUP_REQUESTS)('still gives up on $type after the backup deadline', async (message) => {
+    const background = installFakeBackground()
+    background.hold()
+
+    const pending = request(message)
+    await vi.advanceTimersByTimeAsync(BACKUP_TIMEOUT_MS * 2)
+
+    expect(await pending).toMatchObject({ ok: false, error: { code: 'unreachable' } })
   })
 })
 

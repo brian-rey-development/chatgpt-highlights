@@ -27,6 +27,7 @@ interface View {
   origin: string
   openedIn: string | null
   loads: number
+  reloadTimer: ReturnType<typeof setTimeout> | null
   stops: Stop[]
 }
 
@@ -38,6 +39,8 @@ interface CloseOptions {
 interface OpenOptions {
   shouldPushEntry: boolean
 }
+
+export const RELOAD_DELAY_MS = 200
 
 const RESTORE_HISTORY: CloseOptions = { shouldRestoreHistory: true, shouldReplaceEntry: false }
 const REPLACE_ENTRY: CloseOptions = { shouldRestoreHistory: true, shouldReplaceEntry: true }
@@ -95,6 +98,19 @@ const loadSnapshot = async (state: HostState, view: View): Promise<void> => {
   if (store.library.value === null) closeView(state, RESTORE_HISTORY)
 }
 
+const scheduleReload = (state: HostState, view: View): void => {
+  if (view.reloadTimer !== null) return
+  view.reloadTimer = setTimeout(() => {
+    view.reloadTimer = null
+    void loadSnapshot(state, view)
+  }, RELOAD_DELAY_MS)
+}
+
+const cancelReload = (view: View): void => {
+  if (view.reloadTimer !== null) clearTimeout(view.reloadTimer)
+  view.reloadTimer = null
+}
+
 const watchView = (state: HostState, view: View): Stop[] => {
   const { doc, store, shadowRoot } = state.runtime
   const { openedIn } = view
@@ -109,9 +125,17 @@ const watchView = (state: HostState, view: View): Stop[] => {
     onEscape([doc, shadowRoot], () => closeView(state, RESTORE_HISTORY)),
     listen(doc, { type: 'click', capture: true }, onClick),
     store.conversationId.subscribe(onConversation),
-    onEvent(() => void loadSnapshot(state, view)),
+    onEvent(() => scheduleReload(state, view)),
+    () => cancelReload(view),
   ]
 }
+
+const newView = (fields: Pick<View, 'follow' | 'isPushed' | 'origin' | 'openedIn'>): View => ({
+  ...fields,
+  loads: 0,
+  reloadTimer: null,
+  stops: [],
+})
 
 const openView = (state: HostState, { shouldPushEntry }: OpenOptions): void => {
   const { doc, store } = state.runtime
@@ -121,7 +145,7 @@ const openView = (state: HostState, { shouldPushEntry }: OpenOptions): void => {
   const origin = doc.location.pathname + doc.location.search
   if (shouldPushEntry) history.pushState(null, '', LIBRARY_ADDRESS)
   const follow = followMain(state.runtime, main)
-  const view: View = { follow, isPushed: shouldPushEntry, origin, openedIn, loads: 0, stops: [] }
+  const view = newView({ follow, isPushed: shouldPushEntry, origin, openedIn })
   state.view = view
   store.libraryOver.value = shouldPushEntry ? openedIn : null
   store.pill.value = null
