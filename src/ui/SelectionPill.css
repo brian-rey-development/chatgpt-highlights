@@ -11,3 +11,8 @@
   font-size: var(--hl-text-sm);
   line-height: 20px;
 }
+
+.hl-pill button:focus-visible {
+  outline: 2px solid var(--hl-text);
+  outline-offset: -2px;
+}

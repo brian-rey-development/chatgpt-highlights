@@ -16,7 +16,9 @@ const ISOLATED_KEY_EVENTS = ['keydown', 'keyup', 'keypress'] as const
 
 const scopeToHost = (css: string): string => `${HOST_RESET}\n${css.replaceAll(':root', ':host')}`
 
-export const mountOverlay = (doc: Document, mode: ShadowRootMode, css: string): Overlay => {
+const mounted = new WeakMap<Document, Overlay>()
+
+const createOverlay = (doc: Document, mode: ShadowRootMode, css: string): Overlay => {
   const host = doc.createElement(UI_NAME)
   const shadowRoot = host.attachShadow({ mode })
   const style = doc.createElement('style')
@@ -29,6 +31,14 @@ export const mountOverlay = (doc: Document, mode: ShadowRootMode, css: string): 
   }
   doc.body.append(host)
   return { shadowRoot, container, remove: () => host.remove() }
+}
+
+export const mountOverlay = (doc: Document, mode: ShadowRootMode, css: string): Overlay => {
+  const existing = mounted.get(doc)
+  if (existing?.container.isConnected) return existing
+  const overlay = createOverlay(doc, mode, css)
+  mounted.set(doc, overlay)
+  return overlay
 }
 
 export const isOverlayEvent = (event: Event): boolean =>

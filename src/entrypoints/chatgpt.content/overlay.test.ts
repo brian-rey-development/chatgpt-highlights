@@ -78,4 +78,27 @@ describe('mountOverlay', () => {
     overlay.remove()
     expect(document.querySelector(UI_NAME)).toBeNull()
   })
+
+  it('reuses the host it already mounted instead of adding a second one', () => {
+    const first = mountOverlay(document, 'closed', STYLES)
+    const second = mountOverlay(document, 'closed', STYLES)
+    expect(second).toBe(first)
+    expect(document.querySelectorAll(UI_NAME)).toHaveLength(1)
+  })
+
+  it('mounts a fresh host once the previous one is gone', () => {
+    const first = mountOverlay(document, 'closed', STYLES)
+    first.remove()
+    const second = mountOverlay(document, 'closed', STYLES)
+    expect(second).not.toBe(first)
+    expect(document.querySelectorAll(UI_NAME)).toHaveLength(1)
+  })
+
+  it('mounts a fresh host when the page dropped the old one', () => {
+    const first = mountOverlay(document, 'closed', STYLES)
+    mountFixture('')
+    const second = mountOverlay(document, 'closed', STYLES)
+    expect(second).not.toBe(first)
+    expect(document.querySelectorAll(UI_NAME)).toHaveLength(1)
+  })
 })

@@ -4,6 +4,8 @@
 
 ## Enforced by tooling
 
+The standards script parses `src`, `e2e` and the root config and setup files (`wxt.config.ts`, `vitest.config.ts`, `vitest.setup.ts`), so the cast, class, import and banned-API rules reach them too. A root config may import any domain and the browser APIs, and needs no colocated test. The `video` folder is a separate project, so it stays out of the type check, Biome and the standards script.
+
 | Rule | Limit | Enforced by |
 |---|---|---|
 | Function length | 20 lines, blank lines excluded | Biome |
@@ -13,7 +15,7 @@
 | Control flow | no nested ternaries, collapsed ifs, early returns, no `forEach` | Biome |
 | Callbacks | at most 3 levels | Biome |
 | Magic values | named constants only | Biome |
-| Types | strict TS, `noUncheckedIndexedAccess`, no `any`, no `!`, `import type` | tsc, Biome |
+| Types | strict TS, `noUncheckedIndexedAccess`, no `any`, no `!`, `import type`; `video/` is excluded from `tsc` | tsc, Biome |
 | Type assertions | only with a WHY comment on the line above | standards script |
 | Functions | arrow function expressions; classes only in `src/errors/app-error.ts` | Biome, standards script |
 | Exports | named only (WXT entrypoints and configs excepted), no enums, no namespaces | Biome |
@@ -60,4 +62,6 @@ These are the shapes the codebase already uses. A new file follows them, and rev
 - **Test support.** Everything shared by tests lives in `src/testing` and is imported from `@/testing`: factories (`makeQuote`, `makeHighlight`, `makeConversation`), `FIXED_TIME` as the one test clock, HTML fixtures with `mountFixture`, DOM helpers (`requireElement`, `requireText`, `rangeOver`), and jsdom gap fakes named `installFake*`. A test never re-declares a production constant, selector or time; it imports it. Only `chatgpt/selectors.test.ts` writes selector literals, to pin them. E2E specs run in Node without Vite or vitest, so they import `@/<domain>` surfaces and only the vitest-free modules `@/testing/factories` and `@/testing/fixture-ids` from test support.
 - **Test shape.** Table tests use `it.each` with object rows and `$name` titles. Global cleanup (mocks, stubbed globals, fake timers, `fakeBrowser`) lives in `vitest.config.ts` and `vitest.setup.ts`, never in a test file.
 - **Domain surface.** `index.ts` uses `export *` when every export of the domain is public, and names its exports when the domain has internal ones.
+- **Keyboard.** Everything the pill offers works without a pointer. A selection made with the keyboard is offered after `selectionchange` on the next frame, never while a pointer is held, Tab moves into the pill, and Escape dismisses it.
+- **Browsers in e2e.** `pnpm e2e` runs Chromium only. `pnpm e2e:firefox` loads `dist/firefox-mv3` into a real Firefox through Marionette and stays out of the default run; see `docs/firefox-testing.md`.
 - **Stylesheets.** Each component's `.css` sits beside it and no module imports a stylesheet; `ui/styles.ts` bundles `theme.css`, then `base.css`, then every component sheet into `OVERLAY_STYLES`, which the overlay mounts; shared primitives live in `base.css`. Class names are `hl-<block>`, `hl-<block>__<element>`, `hl-<block>--<modifier>`. Colors, text sizes, radii and stacking order come only from `--hl-*` tokens; spacing stays literal.

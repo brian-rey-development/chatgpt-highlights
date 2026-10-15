@@ -44,9 +44,11 @@ export const sidebarItem = (page: Page): Locator => page.locator(`[${NAV_ATTR}]`
 
 export const composer = (page: Page): Locator => page.locator(COMPOSER)
 
-const pointOfText = (page: Page, target: TextTarget, select: boolean): Promise<Point> =>
+type SelectionMode = 'none' | 'quiet' | 'release'
+
+const pointOfText = (page: Page, target: TextTarget, mode: SelectionMode): Promise<Point> =>
   page.evaluate(
-    ({ attr, messageId, text, select: shouldSelect }) => {
+    ({ attr, messageId, text, mode: selectionMode }) => {
       const findTextNode = (root: Element): Text => {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
         const nodes: Text[] = []
@@ -64,24 +66,29 @@ const pointOfText = (page: Page, target: TextTarget, select: boolean): Promise<P
         range.setEnd(node, at + text.length)
         return range
       }
-      const release = (selected: Range): void => {
+      const select = (selected: Range): void => {
         document.getSelection()?.removeAllRanges()
         document.getSelection()?.addRange(selected)
+        if (selectionMode === 'quiet') return
         const host = selected.startContainer.parentElement
         host?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
       }
       const unit = document.querySelector(`[${attr}="${messageId}"]`)
       if (!unit) throw new Error(`no message ${messageId}`)
       const range = rangeAround(findTextNode(unit))
-      if (shouldSelect) release(range)
+      if (selectionMode !== 'none') select(range)
       const box = range.getBoundingClientRect()
       return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
     },
-    { attr: MESSAGE_ID_ATTR, ...target, select },
+    { attr: MESSAGE_ID_ATTR, ...target, mode },
   )
 
 export const selectText = async (page: Page, target: TextTarget): Promise<void> => {
-  await pointOfText(page, target, true)
+  await pointOfText(page, target, 'release')
+}
+
+export const selectTextWithoutPointer = async (page: Page, target: TextTarget): Promise<void> => {
+  await pointOfText(page, target, 'quiet')
 }
 
 export const offerPill = async (page: Page, target: TextTarget): Promise<void> => {
@@ -91,7 +98,7 @@ export const offerPill = async (page: Page, target: TextTarget): Promise<void> =
 }
 
 export const clickOnText = async (page: Page, target: TextTarget): Promise<void> => {
-  const point = await pointOfText(page, target, false)
+  const point = await pointOfText(page, target, 'none')
   await page.mouse.click(point.x, point.y)
 }
 

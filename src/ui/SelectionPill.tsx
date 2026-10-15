@@ -1,5 +1,5 @@
 import { DEFAULT_COLOR, type HighlightColor } from '@/model'
-import { ColorDots } from './ColorDots'
+import { ColorDots, colorLabel } from './ColorDots'
 import { Icon } from './Icon'
 import { placePill, usePlacement } from './placement'
 
@@ -11,7 +11,8 @@ interface SelectionPillProps {
 }
 
 const NOTE_LABEL = 'Highlight and add note'
-const colorLabelFor = (color: HighlightColor): string => `Highlight ${color}`
+const colorLabelFor = (color: HighlightColor): string =>
+  `Highlight ${colorLabel(color).toLowerCase()}`
 const keepSelection = (event: MouseEvent) => event.preventDefault()
 
 const NoteButton = ({ onClick }: { onClick: () => void }) => (
@@ -28,7 +29,7 @@ const NoteButton = ({ onClick }: { onClick: () => void }) => (
 
 export const SelectionPill = ({ model, actions }: SelectionPillProps) => {
   const { ref, style } = usePlacement<HTMLDivElement, PillModel>(model, placePill)
-  const withNote = () => actions.highlightSelection(DEFAULT_COLOR, true)
+  const addNote = () => actions.highlightSelection(DEFAULT_COLOR, true)
   return (
     <div
       ref={ref}
@@ -44,7 +45,7 @@ export const SelectionPill = ({ model, actions }: SelectionPillProps) => {
         labelFor={colorLabelFor}
         onPick={(color) => actions.highlightSelection(color, false)}
       />
-      <NoteButton onClick={withNote} />
+      <NoteButton onClick={addNote} />
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { describeQuote, readMessageText } from '@/anchoring'
 import * as chatgpt from '@/chatgpt'
 import { COMPOSER, IGNORED_TEXT_SELECTOR, NATIVE_WAIT_MS } from '@/chatgpt'
-import { err, ok } from '@/errors'
+import { err, ok, userMessageOf } from '@/errors'
 import { fieldOf, type Highlight } from '@/model'
 import { createPainter, type Painter } from '@/painter'
 import {
@@ -132,7 +132,7 @@ describe('highlightSelection', () => {
     expect(painter.painted.size).toBe(0)
     expect(store.highlights.value.size).toBe(0)
     expect(store.popover.value).toBeNull()
-    expect(store.toast.value?.message).toBe(WRITE_FAILURE.message)
+    expect(store.toast.value?.message).toBe(userMessageOf(WRITE_FAILURE))
   })
 
   it('does not adopt a highlight saved for a conversation the user has left', async () => {

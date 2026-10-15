@@ -4,6 +4,7 @@ export const CODE_LINES_PER_COMMENT = 20
 export const MAX_DEPTH_BELOW_SRC = 3
 export const TESTING_DIR = 'src/testing/'
 export const E2E_DIR = 'e2e/'
+export const TEST_SETUP = 'vitest.setup.ts'
 export const E2E_TEST_SUPPORT = new Set(['@/testing/factories', '@/testing/fixture-ids'])
 
 export const EDGES = {
@@ -24,7 +25,7 @@ export const DOMAINS = Object.keys(EDGES)
 export const ROOTS = new Set([...DOMAINS, 'entrypoints', 'testing'])
 
 export const BROWSER_API = /^(wxt(\/|$)|@wxt-dev\/|webextension-polyfill$)/
-export const BROWSER_API_LAYERS = new Set(['messaging', 'entrypoints'])
+export const BROWSER_API_LAYERS = new Set(['messaging', 'entrypoints', 'config'])
 export const CONTENT_ENTRY = 'src/entrypoints/chatgpt.content/'
 export const CONTENT_BANNED = new Set(['schemas', 'backup', 'storage', 'zod', 'idb'])
 export const RELATIVE_SPEC = /^\.\.?(\/|$)/
@@ -37,11 +38,12 @@ export const NAME_RULES = {
   css: /^([a-z][a-z0-9]*(-[a-z0-9]+)*|[A-Z][A-Za-z0-9]*)\.css$/,
 }
 
-export const SOURCE = /^(src|e2e)\/.*\.[cm]?[jt]sx?$/
+export const ROOT_CONFIG = /^[^/]+\.(config|setup)\.[cm]?[jt]s$/
+export const SOURCE = /^(src|e2e)\/.*\.[cm]?[jt]sx?$|^[^/]+\.(config|setup)\.[cm]?[jt]s$/
 export const TYPESCRIPT = /\.tsx?$/
 export const TEST = /\.test\.tsx?$/
 export const BINARY = /\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot)$/i
-export const NO_TEST_NEEDED = /(^|\/)(index\.tsx?|types\.ts)$/
+export const NO_TEST_NEEDED = /(^|\/)(index\.tsx?|types\.ts)$|^[^/]+\.(config|setup)\.[cm]?[jt]s$/
 export const CLASS_ALLOWED = new Set(['src/errors/app-error.ts'])
 
 export const COMMENT = /^\s*\/\//
@@ -57,6 +59,9 @@ export const BANNED_PATTERNS = [
   [/@ts-(ignore|expect-error|nocheck)/, 'TypeScript suppression'],
 ]
 
-export const layerOf = (file) => (file.startsWith(E2E_DIR) ? 'e2e' : file.split('/')[1])
+export const layerOf = (file) => {
+  if (ROOT_CONFIG.test(file)) return 'config'
+  return file.startsWith(E2E_DIR) ? 'e2e' : file.split('/')[1]
+}
 export const isTestCode = (file) =>
-  TEST.test(file) || file.startsWith(TESTING_DIR) || file.startsWith(E2E_DIR)
+  TEST.test(file) || file.startsWith(TESTING_DIR) || file.startsWith(E2E_DIR) || file === TEST_SETUP

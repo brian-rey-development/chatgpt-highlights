@@ -1,6 +1,6 @@
 export type Stop = () => void
 
-export type ListenSpec<K extends keyof WindowEventMap> = AddEventListenerOptions & { type: K }
+type ListenSpec<K extends keyof WindowEventMap> = AddEventListenerOptions & { type: K }
 
 export const listen = <K extends keyof WindowEventMap>(
   target: Document | ShadowRoot | Window,
@@ -9,7 +9,7 @@ export const listen = <K extends keyof WindowEventMap>(
 ): Stop => {
   const eventTarget: EventTarget = target
   // K names the exact event that arrives
-  const handler = listener as EventListener
-  eventTarget.addEventListener(type, handler, options)
-  return () => eventTarget.removeEventListener(type, handler, options)
+  const eventListener = listener as EventListener
+  eventTarget.addEventListener(type, eventListener, options)
+  return () => eventTarget.removeEventListener(type, eventListener, options)
 }

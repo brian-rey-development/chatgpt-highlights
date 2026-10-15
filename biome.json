@@ -95,7 +95,7 @@
       }
     },
     {
-      "includes": ["*.config.ts", "e2e/*.config.ts", "src/entrypoints/**/index.ts"],
+      "includes": ["*.config.ts", "e2e/**/*.config.ts", "src/entrypoints/**/index.ts"],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     }
   ],

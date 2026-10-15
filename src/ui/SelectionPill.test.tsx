@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/preact'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HIGHLIGHT_COLORS } from '@/model'
 import { fakeActions, stubElementBox } from '@/testing'
@@ -65,5 +68,50 @@ describe('SelectionPill', () => {
     const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
     screen.getByRole('button', { name: 'Highlight blue' }).dispatchEvent(press)
     expect(press.defaultPrevented).toBe(true)
+  })
+
+  describe('with the keyboard', () => {
+    it('reaches every color and the note button with Tab, in order', async () => {
+      render(<SelectionPill model={pillOf()} actions={fakeActions()} />)
+      const user = userEvent.setup()
+      const reached: (string | null)[] = []
+      for (let press = 0; press < HIGHLIGHT_COLORS.length + 1; press += 1) {
+        await user.tab()
+        reached.push(document.activeElement?.getAttribute('aria-label') ?? null)
+      }
+      expect(reached).toEqual([
+        ...HIGHLIGHT_COLORS.map((color) => `Highlight ${color}`),
+        'Highlight and add note',
+      ])
+    })
+
+    it.each([
+      { name: 'Enter', key: '{Enter}' },
+      { name: 'Space', key: ' ' },
+    ])('highlights the focused color with $name', async ({ key }) => {
+      const highlightSelection = vi.fn()
+      render(<SelectionPill model={pillOf()} actions={fakeActions({ highlightSelection })} />)
+      const user = userEvent.setup()
+      await user.tab()
+      await user.tab()
+      await user.keyboard(key)
+      expect(highlightSelection).toHaveBeenCalledExactlyOnceWith('green', false)
+    })
+
+    it.each([
+      { name: 'Enter', key: '{Enter}' },
+      { name: 'Space', key: ' ' },
+    ])('asks for a note from the focused note button with $name', async ({ key }) => {
+      const highlightSelection = vi.fn()
+      render(<SelectionPill model={pillOf()} actions={fakeActions({ highlightSelection })} />)
+      screen.getByRole('button', { name: 'Highlight and add note' }).focus()
+      await userEvent.setup().keyboard(key)
+      expect(highlightSelection).toHaveBeenCalledExactlyOnceWith('yellow', true)
+    })
+
+    it('draws a visible ring around the focused button', () => {
+      const css = readFileSync(join(import.meta.dirname, 'SelectionPill.css'), 'utf8')
+      expect(css).toMatch(/\.hl-pill button:focus-visible\s*\{[^}]*outline:\s*2px solid/)
+    })
   })
 })

@@ -1,17 +1,21 @@
 import { isGenerating, isTemporaryChat, nativeAskBox, watchNativeAskBox } from '@/chatgpt'
 import { TEMPORARY_CHAT_MESSAGE } from '@/model'
 import { overlapsPainted } from '@/painter'
+import type { PillModel } from '@/ui'
+import { CROSSING_MESSAGE, crossesMessages } from './crossing-selection'
 import { onEscape } from './escape-key'
+import { startKeyboardSelection } from './keyboard-selection'
 import { listen, type Stop } from './listen'
 import { isOverlayEvent } from './overlay'
 import { firstLineRect } from './range-rect'
-import { selectionTarget } from './selection-target'
+import { type SelectionTarget, selectionTarget } from './selection-target'
 import { type Runtime, showMessage } from './store'
 
 interface Release {
   frame: number | null
   unwatch: Stop | null
-  told: boolean
+  isTold: boolean
+  isCrossing: boolean
 }
 
 const LISTENER_OPTIONS = { capture: true, passive: true }
@@ -36,14 +40,33 @@ const redock =
 
 const declineTemporaryChat = ({ store }: Runtime, release: Release): void => {
   store.pill.value = null
-  if (release.told) return
-  release.told = true
+  if (release.isTold) return
+  release.isTold = true
   showMessage(store, TEMPORARY_CHAT_MESSAGE)
 }
 
+const tellCrossing = ({ store }: Runtime, release: Release, isCrossing: boolean): void => {
+  const isNew = isCrossing && !release.isCrossing
+  release.isCrossing = isCrossing
+  if (isNew) showMessage(store, CROSSING_MESSAGE)
+}
+
+const targetToOffer = (runtime: Runtime, release: Release): SelectionTarget | null => {
+  const { doc } = runtime
+  const target = mayOfferPill(runtime) ? selectionTarget(doc) : null
+  const isCrossing = mayOfferPill(runtime) && !isTemporaryChat(doc.location.search)
+  tellCrossing(runtime, release, isCrossing && target === null && crossesMessages(doc))
+  return target
+}
+
+const samePill = (shown: PillModel | null, next: PillModel): boolean =>
+  shown !== null &&
+  boxKey(shown.anchor) === boxKey(next.anchor) &&
+  boxKey(shown.dock) === boxKey(next.dock)
+
 const showPill = (runtime: Runtime, release: Release): void => {
   const { doc, store } = runtime
-  const target = mayOfferPill(runtime) ? selectionTarget(doc) : null
+  const target = targetToOffer(runtime, release)
   if (!target || overlapsPainted(runtime.painter, target.range)) {
     store.pill.value = null
     return
@@ -54,10 +77,8 @@ const showPill = (runtime: Runtime, release: Release): void => {
   }
   const near = target.range.getBoundingClientRect()
   const dock = nativeAskBox(doc, near)
-  store.pill.value = {
-    anchor: firstLineRect(target.range),
-    dock: dock?.getBoundingClientRect() ?? null,
-  }
+  const next = { anchor: firstLineRect(target.range), dock: dock?.getBoundingClientRect() ?? null }
+  if (!samePill(store.pill.value, next)) store.pill.value = next
   release.unwatch = watchNativeAskBox(doc, near, { onBox: redock(runtime) })
 }
 
@@ -91,7 +112,7 @@ const outsideOverlay =
 
 export const startSelection = (runtime: Runtime): Stop => {
   const { doc, shadowRoot } = runtime
-  const release: Release = { frame: null, unwatch: null, told: false }
+  const release: Release = { frame: null, unwatch: null, isTold: false, isCrossing: false }
   const hide = (): void => hidePill(runtime, release)
   const onRelease = outsideOverlay(() => scheduleRelease(runtime, release))
   const onPress = outsideOverlay(() => dismissAll(runtime, release))
@@ -100,6 +121,7 @@ export const startSelection = (runtime: Runtime): Stop => {
     listen(doc, { type: 'pointerdown', ...LISTENER_OPTIONS }, onPress),
     listen(doc, { type: 'scroll', ...LISTENER_OPTIONS }, hide),
     onEscape([doc, shadowRoot], () => dismissAll(runtime, release)),
+    startKeyboardSelection(runtime, () => scheduleRelease(runtime, release)),
   ]
   return () => {
     cancelRelease(release)

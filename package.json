@@ -28,6 +28,7 @@
     "bundle": "pnpm build && node scripts/check-bundle.mjs",
     "lint:firefox": "web-ext lint --source-dir dist/firefox-mv3",
     "e2e": "NODE_ENV=production wxt build --mode e2e && playwright test -c e2e/playwright.config.ts",
+    "e2e:firefox": "wxt build -b firefox && playwright test -c e2e/firefox/playwright.config.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm standards && pnpm test",
     "postinstall": "wxt prepare"
   },

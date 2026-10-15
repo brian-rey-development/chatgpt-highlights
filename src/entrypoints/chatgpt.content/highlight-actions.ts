@@ -22,7 +22,7 @@ const PLACEHOLDER_PREFIX = 'pending:'
 
 interface Creation {
   color: HighlightColor
-  withNote: boolean
+  isNoteWanted: boolean
 }
 
 interface Drawn {
@@ -75,7 +75,7 @@ const createFromSelection = async (runtime: Runtime, creation: Creation): Promis
   const result = await request({ type: 'highlight.create', input })
   unpaint(painter, placeholder)
   if (!result.ok) return showFailure(store, result.error)
-  adopt(runtime, { highlight: result.data, range, anchor: creation.withNote ? anchor : null })
+  adopt(runtime, { highlight: result.data, range, anchor: creation.isNoteWanted ? anchor : null })
 }
 
 const askComposerAbout = (
@@ -119,8 +119,8 @@ export const createHighlightActions = (
   runtime: Runtime,
   host: Pick<LibraryHost, 'close'>,
 ): HighlightActions => ({
-  highlightSelection: (color: HighlightColor, withNote: boolean): void => {
-    void createFromSelection(runtime, { color, withNote })
+  highlightSelection: (color: HighlightColor, isNoteWanted: boolean): void => {
+    void createFromSelection(runtime, { color, isNoteWanted })
   },
   updateHighlight: (id: string, patch: HighlightPatch): void => {
     void editHighlight(runtime, id, patch)

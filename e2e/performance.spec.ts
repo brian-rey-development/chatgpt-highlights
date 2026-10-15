@@ -12,14 +12,7 @@ import {
   SECOND_PHRASE,
 } from './chatgpt-page/long-thread'
 import { expect, test } from './fixtures'
-import {
-  library,
-  openExportMenu,
-  openLibrary,
-  paintedTexts,
-  SETTLE_FRAMES,
-  waitFrames,
-} from './page-actions'
+import { library, openLibrary, paintedTexts, SETTLE_FRAMES, waitFrames } from './page-actions'
 
 const HIGHLIGHT_COUNT = MESSAGE_COUNT * HIGHLIGHTS_PER_MESSAGE
 const ANCHOR_BUDGET_MS = 8
@@ -29,9 +22,8 @@ const BACKUP_FILE = { name: 'long-chat.json', mimeType: JSON_MEDIA_TYPE }
 
 const restoreLongChat = async (page: Page): Promise<void> => {
   await openLibrary(page)
-  await openExportMenu(page)
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('menuitem', { name: 'Restore from backup' }).click()
+  await page.getByRole('button', { name: 'Import backup' }).click()
   await (await chooser).setFiles({ ...BACKUP_FILE, buffer: Buffer.from(longBackup()) })
   await expect(page.getByRole('status')).toContainText(`Imported ${HIGHLIGHT_COUNT}`)
   await page.keyboard.press('Escape')

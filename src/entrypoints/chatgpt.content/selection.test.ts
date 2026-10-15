@@ -25,9 +25,11 @@ import {
   requireElement,
   requireUnit,
   selectRange,
+  settle,
   stubElementBox,
   typeInOverlay,
 } from '@/testing'
+import { CROSSING_MESSAGE } from './crossing-selection'
 import type { Stop } from './listen'
 import { UI_NAME } from './overlay'
 import { startSelection } from './selection'
@@ -46,6 +48,8 @@ const stops: Stop[] = []
 const selectQuote = (messageId: string, exact: string): void =>
   selectRange(rangeOfQuote(messageId, exact))
 
+const toastMessage = (): string | undefined => store.toast.value?.message
+
 const begin = (): void => {
   overlayRoot = makeOverlayRoot()
   painter = createPainter(installFakeHighlightApi())
@@ -62,6 +66,17 @@ const overlayHost = (): Element => {
 const release = async (target: Element = requireUnit(FIRST_ANSWER_ID).textRoot) => {
   target.dispatchEvent(new PointerEvent('pointerup', PRESS))
   await nextFrame()
+}
+
+const settleSelection = async (): Promise<void> => {
+  await nextFrame()
+  await nextFrame()
+}
+
+const acrossTwoMessages = (): Range => {
+  const range = rangeOver(requireUnit(FIRST_ANSWER_ID).textRoot)
+  range.setEnd(requireUnit(LAST_ANSWER_ID).textRoot, 1)
+  return range
 }
 
 const readyToSelect = async (): Promise<void> => {
@@ -160,6 +175,7 @@ describe('showing the pill', () => {
   it('keeps the pill hidden when the page scrolls before the next frame', async () => {
     begin()
     selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settle()
     requireUnit(FIRST_ANSWER_ID).textRoot.dispatchEvent(new PointerEvent('pointerup', PRESS))
     document.dispatchEvent(new Event('scroll'))
     await nextFrame()
@@ -179,6 +195,158 @@ describe('showing the pill', () => {
     selectQuote(LAST_ANSWER_ID, HIGH_TIDE_QUOTE)
     await release()
     expect(store.pill.value).not.toBeNull()
+  })
+})
+
+describe('selecting with the keyboard', () => {
+  it('offers the pill once the selection settles, with no pointer involved', async () => {
+    begin()
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    expect(store.pill.value?.anchor).toBe(SELECTION_BOX)
+  })
+
+  it('waits for the pointer to be released before offering the pill', async () => {
+    begin()
+    document.body.dispatchEvent(new PointerEvent('pointerdown', PRESS))
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    expect(store.pill.value).toBeNull()
+    document.body.dispatchEvent(new PointerEvent('pointerup', PRESS))
+    await settleSelection()
+    expect(store.pill.value).not.toBeNull()
+  })
+
+  it('keeps the very same pill while the selection grows without moving the pill', async () => {
+    begin()
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    const shown = store.pill.value
+    selectRange(rangeOver(requireUnit(FIRST_ANSWER_ID).textRoot))
+    await settleSelection()
+    expect(store.pill.value).toBe(shown)
+  })
+
+  it('moves the pill when the selection moves it', async () => {
+    begin()
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    const shown = store.pill.value
+    installFakeRangeBox(new DOMRect(120, 300, 280, 20))
+    selectQuote(LAST_ANSWER_ID, HIGH_TIDE_QUOTE)
+    await settleSelection()
+    expect(store.pill.value).not.toBe(shown)
+    expect(store.pill.value?.anchor.top).toBe(300)
+  })
+
+  it('takes the pill away when the selection collapses', async () => {
+    begin()
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    document.getSelection()?.collapseToStart()
+    await settleSelection()
+    expect(store.pill.value).toBeNull()
+  })
+
+  it('offers no pill while a response is generating', async () => {
+    addStopButton()
+    begin()
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    expect(store.pill.value).toBeNull()
+  })
+
+  it('offers no pill over an existing highlight', async () => {
+    begin()
+    const range = rangeOfQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    paint(painter, { id: makeHighlight().id, range, color: 'yellow', hasNote: false })
+    selectRange(range)
+    await settleSelection()
+    expect(store.pill.value).toBeNull()
+  })
+
+  it('stops listening to the selection once stopped', async () => {
+    begin()
+    for (const stop of stops.splice(0)) stop()
+    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await settleSelection()
+    expect(store.pill.value).toBeNull()
+  })
+})
+
+describe('a selection that crosses messages', () => {
+  it('tells the user to select within one message', async () => {
+    begin()
+    selectRange(acrossTwoMessages())
+    await release()
+    expect(toastMessage()).toBe(CROSSING_MESSAGE)
+    expect(store.pill.value).toBeNull()
+  })
+
+  it('tells once for the same selection, whatever number of events report it', async () => {
+    begin()
+    selectRange(acrossTwoMessages())
+    await release()
+    store.toast.value = null
+    await release()
+    await settleSelection()
+    expect(store.toast.value).toBeNull()
+  })
+
+  it('tells again for a new crossing after a good selection', async () => {
+    begin()
+    selectRange(acrossTwoMessages())
+    await release()
+    store.toast.value = null
+    await readyToSelect()
+    selectRange(acrossTwoMessages())
+    await release()
+    expect(toastMessage()).toBe(CROSSING_MESSAGE)
+  })
+
+  it('tells again after the selection was cleared', async () => {
+    begin()
+    selectRange(acrossTwoMessages())
+    await release()
+    store.toast.value = null
+    document.getSelection()?.removeAllRanges()
+    await release()
+    selectRange(acrossTwoMessages())
+    await release()
+    expect(toastMessage()).toBe(CROSSING_MESSAGE)
+  })
+
+  it.each([
+    { name: 'inside the composer', select: () => selectRange(rangeOver(requireElement(COMPOSER))) },
+    {
+      name: 'over the size limit',
+      select: () => {
+        const paragraph = requireElement('p', requireUnit(FIRST_ANSWER_ID).textRoot)
+        paragraph.textContent = 'x'.repeat(LIMITS.quoteChars + 1)
+        selectRange(rangeOver(paragraph))
+      },
+    },
+  ])('says nothing about a selection $name', async ({ select }) => {
+    begin()
+    select()
+    await release()
+    expect(store.toast.value).toBeNull()
+  })
+
+  it.each([
+    {
+      name: 'a popover is open',
+      open: () => {
+        store.popover.value = { highlight: makeHighlight(), anchor: SELECTION_BOX }
+      },
+    },
+    { name: 'a response is generating', open: addStopButton },
+  ])('says nothing while $name', async ({ open }) => {
+    open()
+    begin()
+    selectRange(acrossTwoMessages())
+    await release()
+    expect(store.toast.value).toBeNull()
   })
 })
 
@@ -260,7 +428,8 @@ describe('not showing the pill', () => {
 
   it('ignores a release inside the extension overlay', async () => {
     begin()
-    selectQuote(FIRST_ANSWER_ID, PULL_QUOTE)
+    await readyToSelect()
+    store.pill.value = null
     await release(overlayHost())
     expect(store.pill.value).toBeNull()
   })
@@ -335,6 +504,13 @@ describe('temporary chats', () => {
     const range = rangeOfQuote(FIRST_ANSWER_ID, PULL_QUOTE)
     paint(painter, { id: makeHighlight().id, range, color: 'yellow', hasNote: false })
     await readyToSelect()
+    expect(store.toast.value).toBeNull()
+  })
+
+  it('keeps to the temporary chat message for a selection across messages', async () => {
+    begin()
+    selectRange(acrossTwoMessages())
+    await release()
     expect(store.toast.value).toBeNull()
   })
 

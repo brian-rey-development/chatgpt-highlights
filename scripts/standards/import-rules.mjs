@@ -36,7 +36,7 @@ const importSpecifiers = ({ sourceFile, nodes }) =>
     ]
   })
 
-const ALL_DOMAIN_LAYERS = new Set(['entrypoints', 'testing', 'e2e'])
+const ALL_DOMAIN_LAYERS = new Set(['entrypoints', 'testing', 'e2e', 'config'])
 
 const allowedTargets = (file) => {
   const layer = layerOf(file)
