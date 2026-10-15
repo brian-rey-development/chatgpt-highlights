@@ -57,6 +57,11 @@ describe('locateQuote', () => {
     expect(locateQuote('x...x.....x', quote)).toEqual({ start: 10, end: 11 })
   })
 
+  it('does not reattach to a duplicate when the context moved away from the stored offsets', () => {
+    const quote = describeQuote('aaa', { start: 1, end: 3 })
+    expect(locateQuote('xaaa', quote)).toEqual({ start: 2, end: 4 })
+  })
+
   it('finds overlapping occurrences', () => {
     const quote = { exact: 'aa', prefix: 'b', suffix: 'c', start: 3, end: 5 }
     expect(locateQuote('aaabaac', quote)).toEqual({ start: 4, end: 6 })

@@ -51,11 +51,13 @@ const isBetter = (candidate: Candidate, best: Candidate): boolean =>
   candidate.score > best.score ||
   (candidate.score === best.score && candidate.distance < best.distance)
 
+const isStillInPlace = (text: string, quote: Quote): boolean =>
+  text.slice(quote.start, quote.end) === quote.exact &&
+  candidateAt(text, quote, quote.start).score === quote.prefix.length + quote.suffix.length
+
 export const locateQuote = (text: string, quote: Quote): Span | null => {
   if (quote.exact === '') return null
-  if (text.slice(quote.start, quote.end) === quote.exact) {
-    return { start: quote.start, end: quote.end }
-  }
+  if (isStillInPlace(text, quote)) return { start: quote.start, end: quote.end }
   const candidates = occurrenceStarts(text, quote.exact).map((start) =>
     candidateAt(text, quote, start),
   )

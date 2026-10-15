@@ -1,5 +1,5 @@
 import { type MessageText, readMessageText, spanOfRange } from '@/anchoring'
-import { IGNORED_TEXT_SELECTOR, type MessageUnit, unitOf } from '@/chatgpt'
+import { IGNORED_TEXT_SELECTOR, type MessageUnit, unitOf, visibleText } from '@/chatgpt'
 import { LIMITS, type Span } from '@/model'
 
 export interface SelectionTarget {
@@ -13,9 +13,7 @@ const runsPastText = (range: Range, unit: MessageUnit): boolean => {
   if (unit.textRoot.contains(range.endContainer)) return false
   const tail = range.cloneRange()
   tail.setStartAfter(unit.textRoot)
-  const fragment = tail.cloneContents()
-  for (const ignored of fragment.querySelectorAll(IGNORED_TEXT_SELECTOR)) ignored.remove()
-  return fragment.textContent.trim() !== ''
+  return visibleText(tail).trim() !== ''
 }
 
 const unitOfSelection = (range: Range): MessageUnit | null => {

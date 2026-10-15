@@ -143,14 +143,14 @@ describe('createWatcher', () => {
     const watcher = start()
     watcher.requestFull()
     await nextFrame()
-    expect(lastFlush().addressChanged).toBe(true)
+    expect(lastFlush().hasAddressChanged).toBe(true)
     watcher.requestFull()
     await nextFrame()
-    expect(lastFlush().addressChanged).toBe(false)
+    expect(lastFlush().hasAddressChanged).toBe(false)
     window.history.pushState(null, '', `/c/${OTHER_CONVERSATION_ID}`)
     watcher.requestFull()
     await nextFrame()
-    expect(lastFlush().addressChanged).toBe(true)
+    expect(lastFlush().hasAddressChanged).toBe(true)
   })
 
   it('reports an address that keeps its path and changes only its hash', async () => {
@@ -160,7 +160,7 @@ describe('createWatcher', () => {
     window.history.pushState(null, '', `${window.location.pathname}${LIBRARY_HASH}`)
     watcher.requestFull()
     await nextFrame()
-    expect(lastFlush().addressChanged).toBe(true)
+    expect(lastFlush().hasAddressChanged).toBe(true)
   })
 
   it('reports every mounted unit when a full flush is requested', async () => {

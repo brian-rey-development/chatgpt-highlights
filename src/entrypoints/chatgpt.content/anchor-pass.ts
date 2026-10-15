@@ -54,16 +54,17 @@ const anchorUnit = (
   return anchored
 }
 
+const idsWhere = (anchored: readonly Anchored[], isPlaced: boolean): string[] =>
+  anchored.filter(({ range }) => (range !== null) === isPlaced).map(({ highlight }) => highlight.id)
+
 const settleOrphans = (store: Store, anchored: readonly Anchored[]): void => {
   const current = store.orphanIds.value
-  const missed = anchored.filter(({ range }) => !range).map(({ highlight }) => highlight.id)
-  const found = anchored.filter(({ range }) => range).map(({ highlight }) => highlight.id)
-  const unchanged = found.every((id) => !current.has(id)) && missed.every((id) => current.has(id))
-  if (unchanged) return
-  const next = new Set(current)
-  for (const id of found) next.delete(id)
-  for (const id of missed) next.add(id)
-  store.orphanIds.value = next
+  const found = new Set(idsWhere(anchored, true))
+  const missed = idsWhere(anchored, false).filter((id) => !found.has(id))
+  const isUnchanged =
+    [...found].every((id) => !current.has(id)) && missed.every((id) => current.has(id))
+  if (isUnchanged) return
+  store.orphanIds.value = new Set([...current].filter((id) => !found.has(id)).concat(missed))
 }
 
 export const anchorUnits = (
@@ -82,4 +83,16 @@ export const anchorUnits = (
   }
   settleOrphans(store, anchored)
   return missed
+}
+
+export const orphanUnplaced = (
+  { store, painter }: AnchorTarget,
+  lostIds: readonly string[],
+): void => {
+  const current = store.orphanIds.value
+  const orphaned = lostIds.filter(
+    (id) => store.highlights.value.has(id) && !painter.painted.has(id) && !current.has(id),
+  )
+  if (orphaned.length === 0) return
+  store.orphanIds.value = new Set([...current, ...orphaned])
 }

@@ -7,18 +7,20 @@ export const MESSAGE_UNIT = `[${MESSAGE_ID_ATTR}]`
 export const TEXT_ROOT = '[data-markdown-text-style]'
 export const COMPOSER_FORM = 'form'
 export const TEST_ID_ATTR = 'data-testid'
-export const LABEL_ATTR = 'aria-label'
+const LABEL_ATTR = 'aria-label'
 export const GENERATION_ATTRS = [TEST_ID_ATTR, LABEL_ATTR] as const
-export const ARIA_HIDDEN_ATTR = 'aria-hidden'
-export const HIDDEN_ATTR = 'hidden'
+const ARIA_HIDDEN_ATTR = 'aria-hidden'
+const HIDDEN_ATTR = 'hidden'
 export const READABILITY_ATTRS = [ARIA_HIDDEN_ATTR, HIDDEN_ATTR] as const
+export const BUTTON = 'button'
 export const STOP_BUTTON_TEST_ID = 'stop-button'
 export const STOP_BUTTON = [
-  `button[${TEST_ID_ATTR}="${STOP_BUTTON_TEST_ID}"]`,
-  `button[${LABEL_ATTR}^="Stop"]`,
+  `${BUTTON}[${TEST_ID_ATTR}="${STOP_BUTTON_TEST_ID}"]`,
+  `${BUTTON}[${LABEL_ATTR}^="Stop"]`,
 ].join(', ')
 export const COMPOSER = `${COMPOSER_FORM} .ProseMirror[contenteditable="true"][role="textbox"]`
 export const ASK_BOX = 'body div.fixed [role="presentation"]'
+export const ASK_BOX_ATTRS = ['class', 'style', HIDDEN_ATTR] as const
 export const DESTINATION_ATTR = 'data-sidebar-destination'
 export const ACTIVE_ATTR = 'aria-current'
 export const SIDEBAR_DESTINATION = `button[${DESTINATION_ATTR}]`
@@ -35,7 +37,7 @@ export const MARKDOWN_COPY_ATTR = 'data-markdown-copy'
 export const CODE_BLOCK = `[${MARKDOWN_COPY_ATTR}="code-block"]`
 export const COPY_EXCLUDED = `[${MARKDOWN_COPY_ATTR}="exclude"]`
 export const IGNORED_TEXT_SELECTOR = [
-  'button',
+  BUTTON,
   'svg',
   `[${ARIA_HIDDEN_ATTR}="true"]:not(.katex-html)`,
   '.katex-mathml',

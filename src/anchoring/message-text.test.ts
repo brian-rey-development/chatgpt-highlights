@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Span } from '@/model'
 import {
   conversationHtml,
   IGNORED_TEXT_SELECTOR,
@@ -32,6 +33,11 @@ const mount = (html: string): { root: Element; message: MessageText } => {
 
 const sliceOf = (message: MessageText, span: { start: number; end: number } | null): string =>
   span ? message.text.slice(span.start, span.end) : ''
+
+const everySpan = (length: number): Span[] =>
+  Array.from({ length }, (_, start) => start).flatMap((start) =>
+    Array.from({ length: length - start }, (_, extra) => ({ start, end: start + extra + 1 })),
+  )
 
 describe('readMessageText', () => {
   it('concatenates text nodes in document order', () => {
@@ -156,5 +162,20 @@ describe('rangeOfSpan', () => {
   it('returns null for an empty message', () => {
     const { message } = mount('<div></div>')
     expect(rangeOfSpan(message, { start: 0, end: 1 })).toBeNull()
+  })
+
+  it('resolves every span of a message whose empty text nodes share offsets with real text', () => {
+    const { root } = mount('<div><b>one </b><i>two</i></div>')
+    for (const element of root.querySelectorAll('b, i')) {
+      element.prepend(document.createTextNode(''))
+      element.append(document.createTextNode(''))
+    }
+    root.prepend(document.createTextNode(''))
+    root.append(document.createTextNode(''))
+    const message = readMessageText(root, IGNORED_TEXT_SELECTOR)
+    const { length } = message.text
+    for (const span of everySpan(length)) {
+      expect(rangeOfSpan(message, span)?.toString()).toBe(sliceOf(message, span))
+    }
   })
 })

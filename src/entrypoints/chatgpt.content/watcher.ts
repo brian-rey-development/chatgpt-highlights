@@ -11,7 +11,7 @@ import type { Stop } from './listen'
 
 export interface Flush {
   units: ReadonlySet<Element>
-  addressChanged: boolean
+  hasAddressChanged: boolean
 }
 
 interface WatcherState {
@@ -24,7 +24,7 @@ interface WatcherState {
   form: Element | null
   address: string | null
   frame: number | null
-  wantsAllUnits: boolean
+  isFullPassRequested: boolean
 }
 
 // aria-hidden and hidden decide which text a message exposes, and ChatGPT flips them as it renders
@@ -34,7 +34,7 @@ const THREAD_OPTIONS: MutationObserverInit = {
   subtree: true,
   attributeFilter: [...READABILITY_ATTRS],
 }
-const SPINE_OPTIONS = { childList: true } as const
+const SPINE_OPTIONS: MutationObserverInit = { childList: true }
 const COMPOSER_OPTIONS: MutationObserverInit = {
   childList: true,
   subtree: true,
@@ -86,9 +86,9 @@ const observeThread = (state: WatcherState): void => {
 
 const takeUnits = (state: WatcherState): ReadonlySet<Element> => {
   collectAdded(state)
-  if (state.wantsAllUnits) {
+  if (state.isFullPassRequested) {
     for (const unit of unitElements(state.doc)) state.units.add(unit)
-    state.wantsAllUnits = false
+    state.isFullPassRequested = false
   }
   const units = state.units
   state.units = new Set()
@@ -101,9 +101,9 @@ const flush = (state: WatcherState): void => {
   const units = takeUnits(state)
   const { pathname, hash } = state.doc.location
   const address = pathname + hash
-  const addressChanged = address !== state.address
+  const hasAddressChanged = address !== state.address
   state.address = address
-  state.onFlush({ units, addressChanged })
+  state.onFlush({ units, hasAddressChanged })
 }
 
 const schedule = (state: WatcherState): void => {
@@ -125,7 +125,7 @@ const createWatcherState = (doc: Document, onFlush: (flush: Flush) => void): Wat
     form: null,
     address: null,
     frame: null,
-    wantsAllUnits: false,
+    isFullPassRequested: false,
   }
   return state
 }
@@ -142,7 +142,7 @@ export const createWatcher = (
       if (state.frame !== null) cancelAnimationFrame(state.frame)
     },
     requestFull: () => {
-      state.wantsAllUnits = true
+      state.isFullPassRequested = true
       schedule(state)
     },
   }

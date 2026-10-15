@@ -2,9 +2,17 @@ import { conversationIdFromPath, isGenerating, LIBRARY_HASH, unitElements, unitO
 import { type AppEvent, onEvent, request } from '@/messaging'
 import { ANCHOR_MEASURE, type ConversationHighlights, type Highlight } from '@/model'
 import { prune, unpaint, unpaintAll } from '@/painter'
-import { anchorUnits } from './anchor-pass'
+import { anchorUnits, orphanUnplaced } from './anchor-pass'
 import { IS_E2E_BUILD } from './build-mode'
 import type { Stop } from './listen'
+import {
+  clearRetries,
+  createRetryQueue,
+  forgetRetry,
+  type RetryQueue,
+  recordMisses,
+  scheduleRetry,
+} from './retry-queue'
 import { LOAD_FAILED_MESSAGE, type Runtime, showMessage } from './store'
 import { createWatcher, type Flush } from './watcher'
 
@@ -18,19 +26,11 @@ export interface SessionHandle {
 interface SessionState {
   runtime: Runtime
   pending: Set<Element>
-  retries: Map<Element, number>
-  retryTimer: ReturnType<typeof setTimeout> | null
+  retries: RetryQueue
   hooks: Set<() => void>
   epoch: number
-  loaded: boolean
+  isLoaded: boolean
 }
-
-const FIRST_RETRY_MS = 250
-const SECOND_RETRY_MS = 1000
-const LAST_RETRY_MS = 4000
-
-// ChatGPT renders some messages in stages, and a stage can end without any node or text change
-export const RETRY_DELAYS_MS = [FIRST_RETRY_MS, SECOND_RETRY_MS, LAST_RETRY_MS] as const
 
 const NO_ORPHANS: ReadonlySet<string> = new Set()
 
@@ -42,82 +42,55 @@ const streamingUnit = (doc: Document): Element | null => {
   return units.item(units.length - 1)
 }
 
-const takeReady = ({ runtime, pending }: SessionState, generating: boolean): Element[] => {
-  const held = generating ? streamingUnit(runtime.doc) : null
+const takeReady = ({ runtime, pending }: SessionState, isStreaming: boolean): Element[] => {
+  const held = isStreaming ? streamingUnit(runtime.doc) : null
   const ready = [...pending].filter((element) => element !== held)
   for (const element of ready) pending.delete(element)
   return ready
 }
 
-const noteMisses = ({ retries }: SessionState, ready: readonly Element[], missed: Element[]) => {
-  for (const element of ready) {
-    if (!missed.includes(element)) retries.delete(element)
-    else if (!retries.has(element)) retries.set(element, 0)
-  }
+const anchorReady = (state: SessionState, isStreaming: boolean): void => {
+  const ready = takeReady(state, isStreaming)
+  if (ready.length === 0) return
+  recordMisses(state.retries, ready, anchorUnits(state.runtime, connectedUnits(ready)))
 }
 
-const anchorPending = (state: SessionState, generating: boolean): void => {
-  const { runtime, pending, loaded } = state
+const anchorPending = (state: SessionState, isStreaming: boolean): void => {
+  const { runtime, pending, isLoaded } = state
   const { store, painter } = runtime
-  if (!loaded || store.highlights.value.size === 0) {
+  if (!isLoaded || store.highlights.value.size === 0) {
     pending.clear()
     return
   }
-  if (painter.painted.size > 0) prune(painter)
-  const ready = takeReady(state, generating)
-  if (ready.length === 0) return
-  noteMisses(state, ready, anchorUnits(runtime, connectedUnits(ready)))
+  const lost = prune(painter)
+  anchorReady(state, isStreaming)
+  orphanUnplaced(runtime, lost)
 }
 
-const measureAnchoring = (state: SessionState, generating: boolean): void => {
+const measureAnchoring = (state: SessionState, isStreaming: boolean): void => {
   const start = performance.now()
-  anchorPending(state, generating)
+  anchorPending(state, isStreaming)
   performance.measure(ANCHOR_MEASURE, { start })
 }
 
 const anchor = IS_E2E_BUILD ? measureAnchoring : anchorPending
 
-const clearRetries = (state: SessionState): void => {
-  state.retries.clear()
-  if (state.retryTimer !== null) clearTimeout(state.retryTimer)
-  state.retryTimer = null
-}
-
-const scheduleRetry = (state: SessionState, retry: () => void): void => {
-  const { retries } = state
-  for (const [element, used] of retries) {
-    if (used >= RETRY_DELAYS_MS.length) retries.delete(element)
-  }
-  if (state.retryTimer !== null || retries.size === 0) return
-  const delay = RETRY_DELAYS_MS[Math.min(...retries.values())] ?? 0
-  state.retryTimer = setTimeout(retry, delay)
-}
-
-const queueRetries = (state: SessionState): void => {
-  state.retryTimer = null
-  for (const [element, used] of state.retries) {
-    if (!element.isConnected || used >= RETRY_DELAYS_MS.length) state.retries.delete(element)
-    else state.retries.set(element, used + 1)
-    if (state.retries.has(element)) state.pending.add(element)
-  }
-}
-
 const settle = (state: SessionState): void => {
-  const generating = isGenerating(state.runtime.doc)
-  anchor(state, generating)
-  scheduleRetry(state, () => {
-    queueRetries(state)
+  const isStreaming = isGenerating(state.runtime.doc)
+  anchor(state, isStreaming)
+  scheduleRetry(state.retries, (due) => {
+    for (const element of due) state.pending.add(element)
     settle(state)
   })
-  if (generating) return
+  if (isStreaming) return
   for (const hook of state.hooks) hook()
 }
 
 const resetConversation = (state: SessionState, conversationId: string | null): void => {
   const { store, painter } = state.runtime
   state.epoch += 1
-  state.loaded = conversationId === null
-  clearRetries(state)
+  state.isLoaded = conversationId === null
+  clearRetries(state.retries)
   unpaintAll(painter)
   store.conversationId.value = conversationId
   store.conversation.value = null
@@ -140,10 +113,10 @@ const adopt = (state: SessionState, loaded: ConversationHighlights): void => {
   const { store, doc } = runtime
   const highlights = new Map(loaded.highlights.map((highlight) => [highlight.id, highlight]))
   keepOnly(runtime, highlights)
-  clearRetries(state)
+  clearRetries(state.retries)
   store.conversation.value = loaded.conversation
   store.highlights.value = highlights
-  state.loaded = true
+  state.isLoaded = true
   if (highlights.size === 0) return
   for (const element of unitElements(doc)) pending.add(element)
 }
@@ -177,9 +150,9 @@ const followPath = (state: SessionState): void => {
 }
 
 const onFlush = (state: SessionState, flush: Flush): void => {
-  if (flush.addressChanged) followPath(state)
+  if (flush.hasAddressChanged) followPath(state)
   for (const unit of flush.units) {
-    state.retries.delete(unit)
+    forgetRetry(state.retries, unit)
     state.pending.add(unit)
   }
   settle(state)
@@ -203,11 +176,10 @@ export const startSession = (runtime: Runtime): SessionHandle => {
   const state: SessionState = {
     runtime,
     pending: new Set(),
-    retries: new Map(),
-    retryTimer: null,
+    retries: createRetryQueue(),
     hooks: new Set(),
     epoch: 0,
-    loaded: true,
+    isLoaded: true,
   }
   const watcher = createWatcher(runtime.doc, (flush) => onFlush(state, flush))
   const stopEvents = onEvent((event) => reloadIfTouched(state, event))
@@ -216,7 +188,7 @@ export const startSession = (runtime: Runtime): SessionHandle => {
     afterSettle: (hook) => addHook(state, hook),
     stop: () => {
       state.epoch += 1
-      clearRetries(state)
+      clearRetries(state.retries)
       watcher.stop()
       stopEvents()
     },

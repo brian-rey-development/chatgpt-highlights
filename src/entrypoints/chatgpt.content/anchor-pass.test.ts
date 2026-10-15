@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as anchoring from '@/anchoring'
 import { describeQuote, readMessageText } from '@/anchoring'
-import { IGNORED_TEXT_SELECTOR } from '@/chatgpt'
+import { IGNORED_TEXT_SELECTOR, type MessageUnit, unitOf } from '@/chatgpt'
 import type { Highlight } from '@/model'
 import { createPainter, type Painter } from '@/painter'
 import {
@@ -19,7 +19,7 @@ import {
   requireUnit,
   SPRING_QUOTE,
 } from '@/testing'
-import { anchorUnits } from './anchor-pass'
+import { anchorUnits, orphanUnplaced } from './anchor-pass'
 import { createStore, type Store } from './store'
 
 const STALE_OFFSET = 3
@@ -27,6 +27,15 @@ const STALE_OFFSET = 3
 let registry: HighlightRegistry
 let painter: Painter
 let store: Store
+
+const duplicateWithoutText = (unit: MessageUnit): MessageUnit => {
+  const copy = unit.element.cloneNode(true)
+  unit.element.after(copy)
+  const duplicate = unitOf(copy)
+  if (!duplicate) throw new Error('the copy is not a message unit')
+  duplicate.textRoot.textContent = GONE_QUOTE
+  return duplicate
+}
 
 const load = (...highlights: Highlight[]): void => {
   store.highlights.value = new Map(highlights.map((highlight) => [highlight.id, highlight]))
@@ -118,6 +127,16 @@ describe('anchorUnits', () => {
     expect([...store.orphanIds.value]).toEqual(['other'])
   })
 
+  it('keeps a highlight out of the orphans when a duplicate unit lacks its quote', () => {
+    const highlight = highlightIn(FIRST_ANSWER_ID, PULL_QUOTE)
+    load(highlight)
+    const original = requireUnit(FIRST_ANSWER_ID)
+    const duplicate = duplicateWithoutText(original)
+    anchorUnits({ store, painter }, [duplicate, original])
+    expect(painter.painted.has(highlight.id)).toBe(true)
+    expect(store.orphanIds.value.has(highlight.id)).toBe(false)
+  })
+
   it('leaves the orphan signal untouched when nothing changed', () => {
     const orphans = store.orphanIds.value
     load(highlightIn(FIRST_ANSWER_ID, PULL_QUOTE))
@@ -145,5 +164,44 @@ describe('anchorUnits', () => {
     const read = vi.spyOn(anchoring, 'readMessageText')
     anchorUnits({ store, painter }, [FIRST_ANSWER_ID, LAST_ANSWER_ID].map(requireUnit))
     expect(read).not.toHaveBeenCalled()
+  })
+})
+
+describe('orphanUnplaced', () => {
+  it('records highlights that are known but no longer painted', () => {
+    const highlight = highlightIn(FIRST_ANSWER_ID, PULL_QUOTE)
+    load(highlight)
+    orphanUnplaced({ store, painter }, [highlight.id])
+    expect([...store.orphanIds.value]).toEqual([highlight.id])
+  })
+
+  it('keeps the orphans it already had', () => {
+    const highlight = highlightIn(FIRST_ANSWER_ID, PULL_QUOTE)
+    load(highlight)
+    store.orphanIds.value = new Set(['other'])
+    orphanUnplaced({ store, painter }, [highlight.id])
+    expect([...store.orphanIds.value]).toEqual(['other', highlight.id])
+  })
+
+  it('skips a highlight that was painted again meanwhile', () => {
+    const highlight = highlightIn(FIRST_ANSWER_ID, PULL_QUOTE)
+    load(highlight)
+    anchorUnits({ store, painter }, [requireUnit(FIRST_ANSWER_ID)])
+    orphanUnplaced({ store, painter }, [highlight.id])
+    expect(store.orphanIds.value.size).toBe(0)
+  })
+
+  it('skips a highlight that no longer exists', () => {
+    orphanUnplaced({ store, painter }, ['deleted'])
+    expect(store.orphanIds.value.size).toBe(0)
+  })
+
+  it('leaves the orphan signal untouched when it learns nothing new', () => {
+    const highlight = highlightIn(FIRST_ANSWER_ID, PULL_QUOTE)
+    load(highlight)
+    store.orphanIds.value = new Set([highlight.id])
+    const orphans = store.orphanIds.value
+    orphanUnplaced({ store, painter }, [highlight.id])
+    expect(store.orphanIds.value).toBe(orphans)
   })
 })

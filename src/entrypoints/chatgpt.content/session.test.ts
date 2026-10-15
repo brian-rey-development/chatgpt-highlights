@@ -51,7 +51,8 @@ import { App } from '@/ui'
 import * as anchorPass from './anchor-pass'
 import { createHighlightActions } from './highlight-actions'
 import type { Stop } from './listen'
-import { RETRY_DELAYS_MS, type SessionHandle, startSession } from './session'
+import { RETRY_DELAYS_MS } from './retry-queue'
+import { type SessionHandle, startSession } from './session'
 import { createStore, LOAD_FAILED_MESSAGE, type Runtime, type Store } from './store'
 
 const EXCLUDED = 'exclude'
@@ -445,6 +446,33 @@ describe('later flushes', () => {
     await flush()
     expect(painter.painted.size).toBe(0)
     expect(countPaintedRanges(registry)).toBe(0)
+  })
+
+  it('record the highlights of units that left the page as orphans', async () => {
+    await begin()
+    requireUnit(FIRST_ANSWER_ID).element.remove()
+    await flush()
+    expect([...store.orphanIds.value]).toEqual([`${FIRST_ANSWER_ID}-${PULL_QUOTE}`])
+  })
+
+  it('leave no orphan behind for a unit rebuilt in the same pass', async () => {
+    await begin()
+    const original = requireUnit(FIRST_ANSWER_ID).element
+    original.replaceWith(cloneElement(original))
+    await flush()
+    expect(store.orphanIds.value.size).toBe(0)
+  })
+
+  it('paint a unit that comes back and clear its orphan', async () => {
+    await begin()
+    const unit = requireUnit(FIRST_ANSWER_ID).element
+    const parent = unit.parentElement
+    unit.remove()
+    await flush()
+    parent?.append(unit)
+    await flush()
+    expect(store.orphanIds.value.size).toBe(0)
+    expect(painter.painted.has(`${FIRST_ANSWER_ID}-${PULL_QUOTE}`)).toBe(true)
   })
 })
 

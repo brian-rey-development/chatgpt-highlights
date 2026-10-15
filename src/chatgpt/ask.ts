@@ -1,16 +1,17 @@
 import { toBlockquote } from '@/markdown'
 import { composerForm } from './messages'
-import { ASK_BOX, COMPOSER, IGNORED_TEXT_SELECTOR } from './selectors'
+import { ASK_BOX, ASK_BOX_ATTRS, BUTTON, COMPOSER } from './selectors'
 import { isVisible } from './visibility'
+import { visibleText } from './visible-text'
 
 export type AskResult = 'native' | 'pasted' | 'failed'
 
 export const NEAR_DISTANCE_PX = 60
 export const NATIVE_WAIT_MS = 300
-const BOX_MUTATIONS = {
+const BOX_MUTATIONS: MutationObserverInit = {
   childList: true,
   subtree: true,
-  attributeFilter: ['class', 'style', 'hidden'],
+  attributeFilter: [...ASK_BOX_ATTRS],
 }
 
 const gapBetween = (a: DOMRect, b: DOMRect): number => {
@@ -20,7 +21,7 @@ const gapBetween = (a: DOMRect, b: DOMRect): number => {
 }
 
 const isAskBox = (box: Element): boolean =>
-  box.querySelectorAll('button').length === 1 && isVisible(box)
+  box.querySelectorAll(BUTTON).length === 1 && isVisible(box)
 
 export const nativeAskBox = (doc: Document, near: DOMRect): Element | null =>
   [...doc.querySelectorAll(ASK_BOX)].find(
@@ -39,7 +40,7 @@ const simulateRelease = (doc: Document, range: Range): void => {
   target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }))
 }
 
-export interface AskBoxWatch {
+interface AskBoxWatch {
   onBox: (box: Element) => void
   onExpire?: () => void
 }
@@ -90,12 +91,6 @@ const pasteIntoComposer = (doc: Document, text: string): boolean => {
   return true
 }
 
-const visibleText = (range: Range): string => {
-  const fragment = range.cloneContents()
-  for (const ignored of fragment.querySelectorAll(IGNORED_TEXT_SELECTOR)) ignored.remove()
-  return fragment.textContent
-}
-
 export const pasteQuote = (doc: Document, input: { quote: string; note: string }): AskResult => {
   const text = `${toBlockquote(input.quote)}\n\n${input.note}`
   return pasteIntoComposer(doc, text) ? 'pasted' : 'failed'
@@ -109,7 +104,7 @@ export const askAbout = async (
   simulateRelease(doc, range)
   const box = await waitForNativeBox(doc, range.getBoundingClientRect())
   if (!box) return pasteQuote(doc, { quote: visibleText(range), note })
-  box.querySelector('button')?.click()
+  box.querySelector(BUTTON)?.click()
   if (note === '') return 'native'
   return pasteIntoComposer(doc, note) ? 'native' : 'failed'
 }
