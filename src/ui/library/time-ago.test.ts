@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/model'
 import { FIXED_TIME } from '@/testing'
-import { timeAgo } from './time-ago'
+import { absoluteDate, timeAgo } from './time-ago'
 
 const NOW = FIXED_TIME
 
@@ -21,5 +21,11 @@ describe('timeAgo', () => {
     { name: 'last year', elapsed: 366 * DAY_MS, expected: 'Last year' },
   ])('says $expected for $name', ({ elapsed, expected }) => {
     expect(timeAgo(NOW - elapsed, NOW)).toBe(expected)
+  })
+})
+
+describe('absoluteDate', () => {
+  it('writes the day, the year and the time so a relative age can be checked', () => {
+    expect(absoluteDate(NOW)).toMatch(/^Nov 1[45], 2023,? \d{1,2}:\d{2}\s?[AP]M$/)
   })
 })

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
 export const NOTE_AUTOSAVE_MS = 400
+export const SAVED_VISIBLE_MS = 2000
 
 export interface NoteDraft {
   value: string
+  isSaved: boolean
   edit: (next: string) => void
   flush: () => void
   discard: () => void
@@ -19,11 +21,22 @@ interface Pending {
 
 type SaveNote = (note: string) => void
 
-const flushPending = (pending: Pending, save: SaveNote) => {
+const flushPending = (pending: Pending, save: SaveNote): boolean => {
   clearTimeout(pending.timer)
-  if (!pending.alive || pending.latest === pending.saved) return
+  if (!pending.alive || pending.latest === pending.saved) return false
   pending.saved = pending.latest
   save(pending.latest)
+  return true
+}
+
+const useSavedFlag = (): [boolean, (isSaved: boolean) => void] => {
+  const [isSaved, setIsSaved] = useState(false)
+  useEffect(() => {
+    if (!isSaved) return
+    const timer = setTimeout(() => setIsSaved(false), SAVED_VISIBLE_MS)
+    return () => clearTimeout(timer)
+  }, [isSaved])
+  return [isSaved, setIsSaved]
 }
 
 const schedulePending = (pending: Pending, next: string, flush: () => void) => {
@@ -37,28 +50,30 @@ const cancelPending = (pending: Pending) => {
   clearTimeout(pending.timer)
 }
 
+const usePending = (initial: string) =>
+  useRef<Pending>({ latest: initial, saved: initial, alive: true, timer: undefined })
+
 export const useNoteAutosave = (initial: string, save: SaveNote): NoteDraft => {
   const [value, setValue] = useState(initial)
-  const pending = useRef<Pending>({
-    latest: initial,
-    saved: initial,
-    alive: true,
-    timer: undefined,
-  })
+  const [isSaved, setIsSaved] = useSavedFlag()
+  const pending = usePending(initial)
   const saveRef = useRef(save)
   saveRef.current = save
-  const flush = useCallback(() => flushPending(pending.current, saveRef.current), [])
+  const flush = useCallback(() => {
+    if (flushPending(pending.current, saveRef.current)) setIsSaved(true)
+  }, [setIsSaved])
   const edit = useCallback(
     (next: string) => {
       setValue(next)
+      setIsSaved(false)
       schedulePending(pending.current, next, flush)
     },
-    [flush],
+    [flush, setIsSaved],
   )
   const discard = useCallback(() => cancelPending(pending.current), [])
   const reseed = useCallback((saved: string) => {
     pending.current.saved = saved
   }, [])
   useEffect(() => flush, [flush])
-  return { value, edit, flush, discard, reseed }
+  return { value, isSaved, edit, flush, discard, reseed }
 }

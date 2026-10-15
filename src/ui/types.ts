@@ -1,5 +1,5 @@
 import type { ReadonlySignal } from '@preact/signals'
-import type { Highlight, HighlightColor, HighlightPatch, Snapshot } from '@/model'
+import type { Conversation, Highlight, HighlightColor, HighlightPatch, Snapshot } from '@/model'
 
 export interface PillModel {
   anchor: DOMRect
@@ -20,6 +20,11 @@ export interface ToastModel {
 export interface LibraryModel {
   snapshot: Snapshot
   now: number
+}
+
+export interface LibraryGroup {
+  conversation: Conversation
+  highlights: Highlight[]
 }
 
 export interface LibraryFilter {
@@ -47,7 +52,7 @@ export interface UiActions {
   closeLibrary: () => void
   jumpTo: (highlight: Highlight) => void
   copyMarkdown: (highlight: Highlight) => void
-  exportMarkdown: (highlights: readonly Highlight[]) => void
+  exportMarkdown: (groups: readonly LibraryGroup[]) => void
   exportBackup: () => void
   importBackup: (file: File) => void
   purgeConversation: (conversationId: string) => void

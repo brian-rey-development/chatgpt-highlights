@@ -48,3 +48,12 @@
   padding-top: 6px;
   border-top: 1px solid var(--hl-border-subtle);
 }
+
+.hl-popover__meta {
+  display: flex;
+  justify-content: space-between;
+  min-height: 20px;
+  margin-top: 2px;
+  color: var(--hl-text-tertiary);
+  font-size: var(--hl-text-xs);
+}

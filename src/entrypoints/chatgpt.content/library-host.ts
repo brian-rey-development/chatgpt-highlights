@@ -1,7 +1,5 @@
 import {
   conversationIdFromPath,
-  ensureSidebarItem,
-  isItemShown,
   LIBRARY_ADDRESS,
   LIBRARY_HASH,
   mainPane,
@@ -11,6 +9,7 @@ import {
 import { onEvent, onTabCommand, request } from '@/messaging'
 import { onEscape } from './escape-key'
 import { followMain, type MainFollow } from './library-main'
+import { type NavEntry, startNavEntry } from './library-nav-entry'
 import { listen, type Stop } from './listen'
 import type { AfterSettle } from './session'
 import { LOAD_FAILED_MESSAGE, type Runtime, showMessage } from './store'
@@ -24,7 +23,7 @@ export interface LibraryHost {
 
 interface View {
   follow: MainFollow
-  pushed: boolean
+  isPushed: boolean
   origin: string
   openedIn: string | null
   loads: number
@@ -32,26 +31,25 @@ interface View {
 }
 
 interface CloseOptions {
-  restoreHistory: boolean
-  replaceEntry: boolean
+  shouldRestoreHistory: boolean
+  shouldReplaceEntry: boolean
 }
 
 interface OpenOptions {
-  pushEntry: boolean
+  shouldPushEntry: boolean
 }
 
-const RESTORE_HISTORY: CloseOptions = { restoreHistory: true, replaceEntry: false }
-const REPLACE_ENTRY: CloseOptions = { restoreHistory: true, replaceEntry: true }
-const LEAVE_HISTORY: CloseOptions = { restoreHistory: false, replaceEntry: false }
-const REUSE_ENTRY: OpenOptions = { pushEntry: false }
-const PUSH_ENTRY: OpenOptions = { pushEntry: true }
+const RESTORE_HISTORY: CloseOptions = { shouldRestoreHistory: true, shouldReplaceEntry: false }
+const REPLACE_ENTRY: CloseOptions = { shouldRestoreHistory: true, shouldReplaceEntry: true }
+const LEAVE_HISTORY: CloseOptions = { shouldRestoreHistory: false, shouldReplaceEntry: false }
+const REUSE_ENTRY: OpenOptions = { shouldPushEntry: false }
+const PUSH_ENTRY: OpenOptions = { shouldPushEntry: true }
 
 interface HostState {
   runtime: Runtime
   view: View | null
-  item: HTMLElement | null
-  itemWatch: ResizeObserver | null
-  launching: boolean
+  navEntry: NavEntry
+  isLaunching: boolean
 }
 
 const markOpen = (doc: Document): Stop => {
@@ -62,13 +60,13 @@ const markOpen = (doc: Document): Stop => {
 const leavesLibrary = (state: HostState, event: MouseEvent): boolean => {
   const { target } = event
   if (!(target instanceof Element) || !target.closest(SIDEBAR_LINK)) return false
-  return !state.item?.contains(target)
+  return !state.navEntry.contains(target)
 }
 
-const leaveHistory = (doc: Document, view: View, { replaceEntry }: CloseOptions): void => {
+const leaveHistory = (doc: Document, view: View, { shouldReplaceEntry }: CloseOptions): void => {
   if (doc.location.hash !== LIBRARY_HASH) return
   // Pushing moved the path to /, so use the saved one
-  if (view.pushed && !replaceEntry) history.back()
+  if (view.isPushed && !shouldReplaceEntry) history.back()
   else history.replaceState(history.state, '', view.origin)
 }
 
@@ -80,7 +78,7 @@ const closeView = (state: HostState, options: CloseOptions): void => {
   for (const stop of view.stops) stop()
   store.library.value = null
   store.libraryFrame.value = null
-  if (options.restoreHistory) leaveHistory(doc, view, options)
+  if (options.shouldRestoreHistory) leaveHistory(doc, view, options)
 }
 
 const loadSnapshot = async (state: HostState, view: View): Promise<void> => {
@@ -115,17 +113,17 @@ const watchView = (state: HostState, view: View): Stop[] => {
   ]
 }
 
-const openView = (state: HostState, { pushEntry }: OpenOptions): void => {
+const openView = (state: HostState, { shouldPushEntry }: OpenOptions): void => {
   const { doc, store } = state.runtime
   const main = mainPane(doc)
   if (state.view || !main) return
   const openedIn = conversationIdFromPath(doc.location.pathname)
   const origin = doc.location.pathname + doc.location.search
-  if (pushEntry) history.pushState(null, '', LIBRARY_ADDRESS)
+  if (shouldPushEntry) history.pushState(null, '', LIBRARY_ADDRESS)
   const follow = followMain(state.runtime, main)
-  const view: View = { follow, pushed: pushEntry, origin, openedIn, loads: 0, stops: [] }
+  const view: View = { follow, isPushed: shouldPushEntry, origin, openedIn, loads: 0, stops: [] }
   state.view = view
-  store.libraryOver.value = pushEntry ? openedIn : null
+  store.libraryOver.value = shouldPushEntry ? openedIn : null
   store.pill.value = null
   store.popover.value = null
   view.stops.push(markOpen(doc), follow.stop, ...watchView(state, view))
@@ -133,10 +131,10 @@ const openView = (state: HostState, { pushEntry }: OpenOptions): void => {
 }
 
 const launch = (state: HostState): void => {
-  if (!state.launching) return
-  const wanted = state.runtime.doc.location.hash === LIBRARY_HASH
-  if (wanted) openView(state, REUSE_ENTRY)
-  state.launching = wanted && state.view === null
+  if (!state.isLaunching) return
+  const isWanted = state.runtime.doc.location.hash === LIBRARY_HASH
+  if (isWanted) openView(state, REUSE_ENTRY)
+  state.isLaunching = isWanted && state.view === null
 }
 
 const followHistory = (state: HostState): void => {
@@ -150,40 +148,16 @@ const closeWhenAddressLeft = (state: HostState): void => {
   }
 }
 
-const keepItemShown = (state: HostState, open: () => void): void => {
-  if (isItemShown(state.item)) return
-  if (state.item) state.itemWatch?.unobserve(state.item)
-  state.item = ensureSidebarItem(state.runtime.doc, open)
-  if (state.item) state.itemWatch?.observe(state.item)
-}
-
-const followSettledPage = (state: HostState, open: () => void): void => {
+const followSettledPage = (state: HostState): void => {
   closeWhenAddressLeft(state)
   state.view?.follow.refresh()
-  keepItemShown(state, open)
+  state.navEntry.keepShown()
   launch(state)
-}
-
-const watchItem = (state: HostState, open: () => void): Stop => {
-  let frame: number | null = null
-  const observer = new ResizeObserver(() => {
-    if (frame !== null) return
-    frame = requestAnimationFrame(() => {
-      frame = null
-      keepItemShown(state, open)
-    })
-  })
-  state.itemWatch = observer
-  return () => {
-    observer.disconnect()
-    if (frame !== null) cancelAnimationFrame(frame)
-  }
 }
 
 const watchHost = (state: HostState, open: () => void, afterSettle: AfterSettle): Stop => {
   const stops = [
-    watchItem(state, open),
-    afterSettle(() => followSettledPage(state, open)),
+    afterSettle(() => followSettledPage(state)),
     onTabCommand(open),
     listen(window, { type: 'popstate' }, () => followHistory(state)),
   ]
@@ -192,9 +166,18 @@ const watchHost = (state: HostState, open: () => void, afterSettle: AfterSettle)
   }
 }
 
+const toggleView = (state: HostState): void => {
+  if (state.view) closeView(state, RESTORE_HISTORY)
+  else openView(state, PUSH_ENTRY)
+}
+
 export const startLibraryHost = (runtime: Runtime, afterSettle: AfterSettle): LibraryHost => {
-  const launching = runtime.doc.location.hash === LIBRARY_HASH
-  const state: HostState = { runtime, view: null, item: null, itemWatch: null, launching }
+  const state: HostState = {
+    runtime,
+    view: null,
+    navEntry: startNavEntry(runtime.doc, () => toggleView(state)),
+    isLaunching: runtime.doc.location.hash === LIBRARY_HASH,
+  }
   const open = (): void => openView(state, PUSH_ENTRY)
   const stopWatching = watchHost(state, open, afterSettle)
   launch(state)
@@ -205,8 +188,7 @@ export const startLibraryHost = (runtime: Runtime, afterSettle: AfterSettle): Li
     stop: () => {
       closeView(state, LEAVE_HISTORY)
       stopWatching()
-      state.item?.remove()
-      state.item = null
+      state.navEntry.stop()
     },
   }
 }

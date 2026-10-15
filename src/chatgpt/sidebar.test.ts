@@ -20,6 +20,7 @@ import {
 import { conversationLink, ensureSidebarItem, isItemShown, PAGE_STYLES } from './sidebar'
 
 const noop = (): void => undefined
+const MISSING_ID = '68ec1f00-0000-4000-8000-000000000009'
 
 const visibleLibrary = (): HTMLElement =>
   requireElement<HTMLElement>(`${MAIN_NAV} ${LIBRARY_DESTINATION}`)
@@ -200,7 +201,30 @@ describe('PAGE_STYLES', () => {
   })
 })
 
+const addHistoryLink = (href: string, label: string): void => {
+  const link = document.createElement('a')
+  link.setAttribute('data-interactive-row-link', '')
+  link.setAttribute('href', href)
+  link.textContent = label
+  requireElement(MAIN_NAV).append(link)
+}
+
 describe('conversationLink', () => {
+  it('finds a link inside a project, whose path has a prefix', () => {
+    addHistoryLink(`/g/g-p-1/c/${MISSING_ID}`, 'Project chat')
+    expect(conversationLink(document, MISSING_ID)?.textContent).toBe('Project chat')
+  })
+
+  it('finds a link that carries a query string', () => {
+    addHistoryLink(`/c/${MISSING_ID}?model=x`, 'With query')
+    expect(conversationLink(document, MISSING_ID)?.textContent).toBe('With query')
+  })
+
+  it('ignores a link whose path only ends with the id', () => {
+    addHistoryLink(`/share/c/${MISSING_ID}`, 'Shared')
+    expect(conversationLink(document, MISSING_ID)).toBeNull()
+  })
+
   it('returns the history anchor for a conversation', () => {
     const link = conversationLink(document, OTHER_CONVERSATION_ID)
     expect(link?.textContent).toBe('Second chat')

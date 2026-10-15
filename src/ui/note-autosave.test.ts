@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { NOTE_AUTOSAVE_MS, useNoteAutosave } from './note-autosave'
+import { NOTE_AUTOSAVE_MS, SAVED_VISIBLE_MS, useNoteAutosave } from './note-autosave'
 
 const advance = (ms: number) =>
   act(() => {
@@ -80,5 +80,39 @@ describe('useNoteAutosave', () => {
     unmount()
     expect(save).toHaveBeenCalledTimes(2)
     expect(save).toHaveBeenLastCalledWith('rejected')
+  })
+
+  it('is not saved before anything is written', () => {
+    expect(setup().result.current.isSaved).toBe(false)
+  })
+
+  it('reports saved once the note is written, then goes quiet again', () => {
+    const { result } = setup()
+    act(() => result.current.edit('typed'))
+    advance(NOTE_AUTOSAVE_MS)
+    expect(result.current.isSaved).toBe(true)
+    advance(SAVED_VISIBLE_MS)
+    expect(result.current.isSaved).toBe(false)
+  })
+
+  it('hides the confirmation as soon as the next keystroke arrives', () => {
+    const { result } = setup()
+    act(() => result.current.edit('typed'))
+    advance(NOTE_AUTOSAVE_MS)
+    act(() => result.current.edit('typed more'))
+    expect(result.current.isSaved).toBe(false)
+  })
+
+  it('reports saved after a save on demand', () => {
+    const { result } = setup()
+    act(() => result.current.edit('now'))
+    act(() => result.current.flush())
+    expect(result.current.isSaved).toBe(true)
+  })
+
+  it('stays unsaved when a flush finds nothing new to write', () => {
+    const { result } = setup()
+    act(() => result.current.flush())
+    expect(result.current.isSaved).toBe(false)
   })
 })

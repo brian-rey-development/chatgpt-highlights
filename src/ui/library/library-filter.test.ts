@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Highlight, Snapshot } from '@/model'
 import { EMPTY_SNAPSHOT, makeConversation, makeHighlight, makeQuote } from '@/testing'
-import type { LibraryFilter } from '../types'
-import { countRows, groupLibrary, type LibraryGroup, tagsInUse, takeRows } from './library-filter'
+import type { LibraryFilter, LibraryGroup } from '../types'
+import { countRows, groupLibrary, tagsInUse, takeRows } from './library-filter'
 
 const ALL: LibraryFilter = { text: '', color: null, tag: null }
 

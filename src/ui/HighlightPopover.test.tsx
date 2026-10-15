@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LIMITS } from '@/model'
 import { fakeActions, makeHighlight, stubElementBox } from '@/testing'
-import { HighlightPopover } from './HighlightPopover'
-import { NOTE_AUTOSAVE_MS } from './note-autosave'
+import { colorLabel } from './ColorDots'
+import { HighlightPopover, NOTE_COUNTER_FROM_CHARS } from './HighlightPopover'
+import { NOTE_AUTOSAVE_MS, SAVED_VISIBLE_MS } from './note-autosave'
 import type { PopoverModel } from './types'
 
 const ANCHOR = new DOMRect(300, 100, 120, 24)
@@ -229,5 +231,41 @@ describe('HighlightPopover', () => {
     )
     expect(note()).toHaveValue('Other')
     expect(screen.getByRole('button', { name: 'Pink', pressed: true })).toBeInTheDocument()
+  })
+
+  it('names the color buttons with the shared color labels', () => {
+    render(<HighlightPopover model={modelOf()} actions={fakeActions()} />)
+    expect(screen.getByRole('button', { name: colorLabel('pink') })).toBeInTheDocument()
+  })
+})
+
+describe('HighlightPopover note feedback', () => {
+  beforeEach(() => vi.useFakeTimers())
+
+  const status = () => screen.getByRole('status', { name: 'Note status' })
+
+  it('confirms an autosaved note with a quiet Saved, then lets it fade', () => {
+    render(<HighlightPopover model={modelOf()} actions={fakeActions()} />)
+    expect(status()).toBeEmptyDOMElement()
+    fireEvent.input(note(), { target: { value: 'Edited' } })
+    act(() => {
+      vi.advanceTimersByTime(NOTE_AUTOSAVE_MS)
+    })
+    expect(status()).toHaveTextContent('Saved')
+    act(() => {
+      vi.advanceTimersByTime(SAVED_VISIBLE_MS)
+    })
+    expect(status()).toBeEmptyDOMElement()
+  })
+
+  it('shows no character counter for a short note', () => {
+    render(<HighlightPopover model={modelOf()} actions={fakeActions()} />)
+    expect(screen.queryByText(new RegExp(`/ ${LIMITS.noteChars}`))).not.toBeInTheDocument()
+  })
+
+  it('counts the characters once the note nears the limit', () => {
+    const near = 'x'.repeat(NOTE_COUNTER_FROM_CHARS)
+    render(<HighlightPopover model={modelOf({ note: near })} actions={fakeActions()} />)
+    expect(screen.getByText(`${NOTE_COUNTER_FROM_CHARS} / ${LIMITS.noteChars}`)).toBeInTheDocument()
   })
 })

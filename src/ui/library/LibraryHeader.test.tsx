@@ -6,13 +6,16 @@ import { LibraryHeader } from './LibraryHeader'
 
 const NONE: LibraryFilter = { text: '', color: null, tag: null }
 
+const CLOSE_NAME = 'Close highlights'
+
 const renderHeader = (
   filter: LibraryFilter = NONE,
   tags: readonly string[] = ['math', 'stats'],
+  onClose: () => void = vi.fn(),
 ) => {
   const onFilter = vi.fn()
   render(
-    <LibraryHeader filter={filter} tags={tags} onFilter={onFilter}>
+    <LibraryHeader filter={filter} tags={tags} onFilter={onFilter} onClose={onClose}>
       <span>menu slot</span>
     </LibraryHeader>,
   )
@@ -26,9 +29,24 @@ describe('LibraryHeader', () => {
     expect(screen.getByText('menu slot')).toBeInTheDocument()
   })
 
+  it('closes the view from an accessible close button after the slot', () => {
+    const onClose = vi.fn()
+    renderHeader(NONE, [], onClose)
+    const close = screen.getByRole('button', { name: CLOSE_NAME })
+    expect(close).toHaveAttribute('title', CLOSE_NAME)
+    expect(screen.getByText('menu slot').compareDocumentPosition(close)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('offers All, the five colors and every tag as chips', () => {
     renderHeader()
-    const chips = screen.getAllByRole('button').map((chip) => chip.textContent)
+    const chips = screen
+      .getAllByRole('button')
+      .filter((chip) => chip.getAttribute('aria-pressed') !== null)
+      .map((chip) => chip.textContent)
     expect(chips).toEqual([
       'All',
       ...HIGHLIGHT_COLORS.map((color) => `${color.charAt(0).toUpperCase()}${color.slice(1)}`),

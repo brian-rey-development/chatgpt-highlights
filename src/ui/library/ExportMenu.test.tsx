@@ -1,6 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
-import { JSON_MEDIA_TYPE } from '@/model'
 import { fakeActions, makeConversation, makeHighlight } from '@/testing'
 import type { UiActions } from '../types'
 import { ExportMenu } from './ExportMenu'
@@ -18,12 +17,6 @@ const openMenu = (actions: UiActions = fakeActions()) => {
   return view
 }
 
-const fileInput = (container: Element) => {
-  const input = container.querySelector('input[type="file"]')
-  if (!(input instanceof HTMLInputElement)) throw new Error('no file input')
-  return input
-}
-
 describe('ExportMenu', () => {
   it('stays closed until the Export button is pressed', () => {
     render(<ExportMenu groups={GROUPS} actions={fakeActions()} />)
@@ -31,18 +24,18 @@ describe('ExportMenu', () => {
     expect(screen.getByRole('button', { name: 'Export' })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('lists the three exports', () => {
+  it('lists the two exports and leaves importing to its own button', () => {
     openMenu()
     const names = screen.getAllByRole('menuitem').map((item) => item.textContent)
-    expect(names).toEqual(['Markdown', 'Back up as JSON', 'Restore from backup'])
+    expect(names).toEqual(['Markdown', 'Back up as JSON'])
     expect(screen.getByRole('button', { name: 'Export' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('exports the highlights of every group it was given as Markdown', () => {
+  it('exports every group it was given as Markdown', () => {
     const exportMarkdown = vi.fn()
     openMenu(fakeActions({ exportMarkdown }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Markdown' }))
-    expect(exportMarkdown).toHaveBeenCalledExactlyOnceWith([FIRST, SECOND])
+    expect(exportMarkdown).toHaveBeenCalledExactlyOnceWith(GROUPS)
   })
 
   it('backs up as JSON', () => {
@@ -65,28 +58,5 @@ describe('ExportMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Export' }))
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-  })
-
-  it('opens the file picker for Restore from backup', () => {
-    const pick = vi.spyOn(HTMLInputElement.prototype, 'click')
-    const { container } = openMenu()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore from backup' }))
-    expect(pick).toHaveBeenCalledOnce()
-    expect(fileInput(container)).toHaveAttribute('accept', `.json,${JSON_MEDIA_TYPE}`)
-  })
-
-  it('imports the chosen file', () => {
-    const importBackup = vi.fn()
-    const { container } = openMenu(fakeActions({ importBackup }))
-    const file = new File(['{}'], 'backup.json', { type: JSON_MEDIA_TYPE })
-    fireEvent.change(fileInput(container), { target: { files: [file] } })
-    expect(importBackup).toHaveBeenCalledExactlyOnceWith(file)
-  })
-
-  it('ignores a picker closed without a file', () => {
-    const importBackup = vi.fn()
-    const { container } = openMenu(fakeActions({ importBackup }))
-    fireEvent.change(fileInput(container), { target: { files: [] } })
-    expect(importBackup).not.toHaveBeenCalled()
   })
 })

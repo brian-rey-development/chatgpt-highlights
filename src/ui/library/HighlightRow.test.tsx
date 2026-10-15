@@ -4,6 +4,7 @@ import { DAY_MS } from '@/model'
 import { FIXED_TIME, fakeActions, makeHighlight, makeQuote } from '@/testing'
 import type { UiActions } from '../types'
 import { HighlightRow } from './HighlightRow'
+import { absoluteDate } from './time-ago'
 
 const NOW = FIXED_TIME + 3 * DAY_MS
 
@@ -15,13 +16,13 @@ const highlight = makeHighlight({
   tags: ['statistics', 'ab'],
 })
 
-const renderRow = (props: { orphan?: boolean; inTrash?: boolean; actions?: UiActions } = {}) =>
+const renderRow = (props: { isOrphan?: boolean; isInTrash?: boolean; actions?: UiActions } = {}) =>
   render(
     <HighlightRow
       highlight={highlight}
       now={NOW}
-      orphan={props.orphan ?? false}
-      inTrash={props.inTrash ?? false}
+      isOrphan={props.isOrphan ?? false}
+      isInTrash={props.isInTrash ?? false}
       actions={props.actions ?? fakeActions()}
     />,
   )
@@ -36,6 +37,14 @@ describe('HighlightRow', () => {
     expect(screen.getByText('#ab')).toBeInTheDocument()
   })
 
+  it('shows the exact date of the relative age in a tooltip', () => {
+    renderRow()
+    expect(screen.getByText('3 days ago')).toHaveAttribute(
+      'title',
+      absoluteDate(highlight.createdAt),
+    )
+  })
+
   it('carries the highlight color on its bar', () => {
     const { container } = renderRow()
     expect(container.querySelector('.hl-row__bar')).toHaveAttribute('data-color', 'green')
@@ -46,8 +55,8 @@ describe('HighlightRow', () => {
       <HighlightRow
         highlight={{ ...highlight, note: '' }}
         now={NOW}
-        orphan={false}
-        inTrash={false}
+        isOrphan={false}
+        isInTrash={false}
         actions={fakeActions()}
       />,
     )
@@ -73,7 +82,7 @@ describe('HighlightRow', () => {
   })
 
   it('marks an orphan as not found in the chat', () => {
-    renderRow({ orphan: true })
+    renderRow({ isOrphan: true })
     expect(screen.getByText('Not found in chat')).toBeInTheDocument()
   })
 
@@ -84,7 +93,7 @@ describe('HighlightRow', () => {
 
   it('offers only copy in Recently deleted, and a click does not jump', () => {
     const actions = fakeActions()
-    renderRow({ inTrash: true, actions })
+    renderRow({ isInTrash: true, actions })
     const names = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
     expect(names).toEqual(['Copy as Markdown'])
     fireEvent.click(screen.getByText('An informative prior acts like extra data'))
@@ -93,7 +102,7 @@ describe('HighlightRow', () => {
 
   it('still copies from Recently deleted', () => {
     const actions = fakeActions()
-    renderRow({ inTrash: true, actions })
+    renderRow({ isInTrash: true, actions })
     fireEvent.click(screen.getByRole('button', { name: 'Copy as Markdown' }))
     expect(actions.copyMarkdown).toHaveBeenCalledExactlyOnceWith(highlight)
   })

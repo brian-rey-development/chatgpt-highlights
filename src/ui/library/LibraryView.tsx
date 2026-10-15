@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'preact/hooks'
+import { useMemo, useRef, useState } from 'preact/hooks'
 import { LIBRARY_LABEL, type Snapshot } from '@/model'
-import type { LibraryFilter, LibraryModel, UiActions } from '../types'
+import type { LibraryFilter, LibraryGroup, LibraryModel, UiActions } from '../types'
 import { ExportMenu } from './ExportMenu'
+import { useFocusScope } from './focus-scope'
 import { HighlightRow } from './HighlightRow'
+import { ImportButton } from './ImportButton'
 import { LibraryHeader } from './LibraryHeader'
-import { countRows, groupLibrary, type LibraryGroup, tagsInUse, takeRows } from './library-filter'
+import { countRows, groupLibrary, tagsInUse, takeRows } from './library-filter'
 import { TrashSection } from './TrashSection'
 
 export const PAGE_SIZE = 200
@@ -45,8 +47,8 @@ const ActiveGroups = ({ groups, now, orphanIds, actions }: ActiveGroupsProps) =>
             key={highlight.id}
             highlight={highlight}
             now={now}
-            orphan={orphanIds.has(highlight.id)}
-            inTrash={false}
+            isOrphan={orphanIds.has(highlight.id)}
+            isInTrash={false}
             actions={actions}
           />
         ))}
@@ -67,14 +69,13 @@ const frameStyle = (frame: DOMRect) => ({
   height: frame.height,
 })
 
-interface LibraryViewProps {
+interface LibraryContentProps {
   model: LibraryModel
-  frame: DOMRect
   orphanIds: ReadonlySet<string>
   actions: UiActions
 }
 
-interface ResultsProps extends Omit<LibraryViewProps, 'frame'> {
+interface ResultsProps extends LibraryContentProps {
   query: Query
 }
 
@@ -101,15 +102,52 @@ const LibraryResults = ({ query, model, orphanIds, actions }: ResultsProps) => {
   )
 }
 
-export const LibraryView = ({ frame, ...rest }: LibraryViewProps) => {
-  const query = useLibraryQuery(rest.model.snapshot)
+const LibraryContent = (props: LibraryContentProps) => {
+  const query = useLibraryQuery(props.model.snapshot)
   return (
-    <section class="hl-library" aria-label={LIBRARY_LABEL} style={frameStyle(frame)}>
+    <>
+      <LibraryHeader
+        filter={query.filter}
+        tags={query.tags}
+        onFilter={query.changeFilter}
+        onClose={props.actions.closeLibrary}
+      >
+        <ImportButton onFile={props.actions.importBackup} />
+        <ExportMenu groups={query.sections.active} actions={props.actions} />
+      </LibraryHeader>
+      <LibraryResults query={query} {...props} />
+    </>
+  )
+}
+
+interface LibraryViewProps {
+  model: LibraryModel | null
+  frame: DOMRect
+  orphanIds: ReadonlySet<string>
+  actions: UiActions
+}
+
+export const LibraryView = ({ frame, model, ...rest }: LibraryViewProps) => {
+  const scope = useRef<HTMLElement>(null)
+  const onKeyDown = useFocusScope(scope)
+  return (
+    <section
+      ref={scope}
+      class="hl-library"
+      aria-label={LIBRARY_LABEL}
+      aria-busy={model === null}
+      tabIndex={-1}
+      style={frameStyle(frame)}
+      onKeyDown={onKeyDown}
+    >
       <div class="hl-library__page">
-        <LibraryHeader filter={query.filter} tags={query.tags} onFilter={query.changeFilter}>
-          <ExportMenu groups={query.sections.active} actions={rest.actions} />
-        </LibraryHeader>
-        <LibraryResults query={query} {...rest} />
+        {model ? (
+          <LibraryContent model={model} {...rest} />
+        ) : (
+          <p class="hl-library__empty" role="status">
+            Loading highlights
+          </p>
+        )}
       </div>
     </section>
   )

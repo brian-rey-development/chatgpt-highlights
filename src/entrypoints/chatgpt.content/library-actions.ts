@@ -1,14 +1,8 @@
 import { conversationLink, conversationUrl } from '@/chatgpt'
-import { highlightToMarkdown, type MarkdownGroup, renderMarkdown } from '@/markdown'
+import { highlightToMarkdown, renderMarkdown } from '@/markdown'
 import { request } from '@/messaging'
-import {
-  COPIED_MESSAGE,
-  type Highlight,
-  type ImportReport,
-  JSON_MEDIA_TYPE,
-  type Snapshot,
-} from '@/model'
-import type { UiActions } from '@/ui'
+import { COPIED_MESSAGE, type Highlight, type ImportReport, JSON_MEDIA_TYPE } from '@/model'
+import type { LibraryGroup, UiActions } from '@/ui'
 import { downloadFile, exportFileName } from './download'
 import { type Jump, saveJump } from './jump'
 import type { LibraryHost } from './library-host'
@@ -34,19 +28,14 @@ const MARKDOWN_TYPE = 'text/markdown'
 export const importedMessage = ({ added, updated, skipped }: ImportReport): string =>
   `Imported ${added}, updated ${updated}, skipped ${skipped}`
 
-const groupsOf = (snapshot: Snapshot | undefined, highlights: readonly Highlight[]) => {
-  const titles = new Map(snapshot?.conversations.map(({ id, title }) => [id, title]))
-  return [...Map.groupBy(highlights, (highlight) => highlight.conversationId)].map(
-    ([id, group]): MarkdownGroup => ({
-      title: titles.get(id) ?? conversationUrl(id),
-      url: conversationUrl(id),
-      highlights: group,
-    }),
+const exportMarkdown = ({ doc }: Runtime, groups: readonly LibraryGroup[]): void => {
+  const text = renderMarkdown(
+    groups.map(({ conversation, highlights }) => ({
+      title: conversation.title,
+      url: conversationUrl(conversation.id),
+      highlights,
+    })),
   )
-}
-
-const exportMarkdown = ({ doc, store }: Runtime, highlights: readonly Highlight[]): void => {
-  const text = renderMarkdown(groupsOf(store.library.value?.snapshot, highlights))
   downloadFile(doc, { name: exportFileName('md', Date.now()), text, type: MARKDOWN_TYPE })
 }
 
@@ -110,7 +99,7 @@ export const createLibraryActions = (
   closeLibrary: host.close,
   jumpTo: jumper(runtime, host, reveal),
   copyMarkdown: (highlight) => void copy(runtime, highlight),
-  exportMarkdown: (highlights) => exportMarkdown(runtime, highlights),
+  exportMarkdown: (groups) => exportMarkdown(runtime, groups),
   exportBackup: () => void exportBackup(runtime),
   importBackup: (file) => void importBackup(runtime, file),
   purgeConversation: (conversationId) => void purge(runtime, conversationId),

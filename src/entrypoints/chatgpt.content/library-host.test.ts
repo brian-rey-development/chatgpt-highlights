@@ -492,10 +492,30 @@ describe('closing', () => {
     expect(isOpen()).toBe(false)
   })
 
-  it('stays open on a click anywhere else, and on its own sidebar item', async () => {
+  it('stays open on a click anywhere else', async () => {
     await opened()
     mainElement().dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    sidebarItem().click()
+    expect(isOpen()).toBe(true)
+  })
+
+  it('closes on a second click on its own sidebar item and restores the address', async () => {
+    await opened()
+    await withRealTimers(() => sidebarItem().click())
+    expect(isOpen()).toBe(false)
+    expect(addressBar()).toBe(FIXTURE_CHAT_PATH)
+  })
+
+  it('opens again on a third click on its own sidebar item', async () => {
+    await opened()
+    await withRealTimers(() => sidebarItem().click())
+    await withRealTimers(() => sidebarItem().click())
+    expect(isOpen()).toBe(true)
+  })
+
+  it('keeps the library.open tab command opening only, never closing', async () => {
+    await opened()
+    await deliverMessage(LIBRARY_OPEN)
+    await settle()
     expect(isOpen()).toBe(true)
   })
 

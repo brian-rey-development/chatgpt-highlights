@@ -1,7 +1,7 @@
 import type { RefObject } from 'preact'
 import { useEffect, useRef } from 'preact/hooks'
 import { type HighlightColor, LIMITS } from '@/model'
-import { COLOR_LABELS, ColorDots } from './ColorDots'
+import { ColorDots, colorLabel } from './ColorDots'
 import { Icon } from './Icon'
 import { placePopover, usePlacement } from './placement'
 import { usePopoverDraft } from './popover-draft'
@@ -9,6 +9,9 @@ import { TagField } from './TagField'
 import type { PopoverModel, UiActions } from './types'
 
 const CLOSE_LABEL = 'Close'
+const COUNTER_START_RATIO = 0.9
+
+export const NOTE_COUNTER_FROM_CHARS = Math.floor(LIMITS.noteChars * COUNTER_START_RATIO)
 
 interface PopoverProps {
   model: PopoverModel
@@ -19,8 +22,6 @@ interface NoteFieldProps {
   value: string
   onInput: (value: string) => void
 }
-
-const colorLabelFor = (color: HighlightColor): string => COLOR_LABELS[color]
 
 const useFocusOnMount = (ref: RefObject<HTMLElement>, active: boolean) => {
   useEffect(() => {
@@ -43,6 +44,24 @@ const NoteField = ({ value, onInput }: NoteFieldProps) => {
     />
   )
 }
+
+interface NoteMetaProps {
+  length: number
+  isSaved: boolean
+}
+
+const NoteMeta = ({ length, isSaved }: NoteMetaProps) => (
+  <div class="hl-popover__meta">
+    <span role="status" aria-label="Note status">
+      {isSaved && 'Saved'}
+    </span>
+    {length >= NOTE_COUNTER_FROM_CHARS && (
+      <span>
+        {length} / {LIMITS.noteChars}
+      </span>
+    )}
+  </div>
+)
 
 interface FooterProps {
   onAsk: () => void
@@ -74,7 +93,7 @@ interface HeaderProps {
 
 const PopoverHeader = ({ color, onPick, onClose }: HeaderProps) => (
   <div class="hl-popover__header">
-    <ColorDots current={color} size="md" labelFor={colorLabelFor} onPick={onPick} />
+    <ColorDots current={color} size="md" labelFor={colorLabel} onPick={onPick} />
     <button
       type="button"
       class="hl-icon-button"
@@ -103,6 +122,7 @@ const PopoverBody = ({ model, actions }: PopoverProps) => {
     >
       <PopoverHeader color={draft.color} onPick={draft.pickColor} onClose={draft.close} />
       <NoteField value={draft.note.value} onInput={draft.note.edit} />
+      <NoteMeta length={draft.note.value.length} isSaved={draft.note.isSaved} />
       <TagField tags={draft.tags} onChange={draft.changeTags} />
       <PopoverFooter onAsk={draft.ask} onRemove={draft.remove} />
     </div>

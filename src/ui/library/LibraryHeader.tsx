@@ -4,18 +4,20 @@ import { COLOR_LABELS } from '../ColorDots'
 import { Icon } from '../Icon'
 import type { LibraryFilter } from '../types'
 
+const CLOSE_LABEL = 'Close highlights'
+
 interface ChipProps {
-  on: boolean
+  isOn: boolean
   color?: HighlightColor
   onClick: () => void
   children: ComponentChildren
 }
 
-const Chip = ({ on, color, onClick, children }: ChipProps) => (
+const Chip = ({ isOn, color, onClick, children }: ChipProps) => (
   <button
     type="button"
-    class={on ? 'hl-chip hl-chip--on' : 'hl-chip'}
-    aria-pressed={on}
+    class={isOn ? 'hl-chip hl-chip--on' : 'hl-chip'}
+    aria-pressed={isOn}
     data-color={color}
     onClick={onClick}
   >
@@ -33,7 +35,7 @@ interface FilterChipsProps {
 const FilterChips = ({ filter, tags, onFilter }: FilterChipsProps) => (
   <div class="hl-chips">
     <Chip
-      on={filter.color === null && filter.tag === null}
+      isOn={filter.color === null && filter.tag === null}
       onClick={() => onFilter({ ...filter, color: null, tag: null })}
     >
       All
@@ -42,7 +44,7 @@ const FilterChips = ({ filter, tags, onFilter }: FilterChipsProps) => (
       <Chip
         key={color}
         color={color}
-        on={filter.color === color}
+        isOn={filter.color === color}
         onClick={() => onFilter({ ...filter, color: filter.color === color ? null : color })}
       >
         {COLOR_LABELS[color]}
@@ -51,7 +53,7 @@ const FilterChips = ({ filter, tags, onFilter }: FilterChipsProps) => (
     {tags.map((tag) => (
       <Chip
         key={tag}
-        on={filter.tag === tag}
+        isOn={filter.tag === tag}
         onClick={() => onFilter({ ...filter, tag: filter.tag === tag ? null : tag })}
       >
         {tagLabel(tag)}
@@ -61,14 +63,24 @@ const FilterChips = ({ filter, tags, onFilter }: FilterChipsProps) => (
 )
 
 interface LibraryHeaderProps extends FilterChipsProps {
+  onClose: () => void
   children: ComponentChildren
 }
 
-export const LibraryHeader = ({ children, ...chips }: LibraryHeaderProps) => (
+export const LibraryHeader = ({ children, onClose, ...chips }: LibraryHeaderProps) => (
   <header class="hl-library__header">
     <div class="hl-library__title-row">
       <h1 class="hl-library__title">Highlights</h1>
       {children}
+      <button
+        type="button"
+        class="hl-icon-button"
+        title={CLOSE_LABEL}
+        aria-label={CLOSE_LABEL}
+        onClick={onClose}
+      >
+        <Icon name="close" size="md" />
+      </button>
     </div>
     <label class="hl-search">
       <Icon name="search" />

@@ -1,12 +1,12 @@
 import { type Highlight, tagLabel } from '@/model'
 import { Icon, type IconName } from '../Icon'
 import type { UiActions } from '../types'
-import { timeAgo } from './time-ago'
+import { absoluteDate, timeAgo } from './time-ago'
 
 interface RowAction {
   label: string
   icon: IconName
-  offeredInTrash: boolean
+  isOfferedInTrash: boolean
   run: (actions: UiActions, highlight: Highlight) => void
 }
 
@@ -14,19 +14,19 @@ const ROW_ACTIONS: readonly RowAction[] = [
   {
     label: 'Ask about this',
     icon: 'quote',
-    offeredInTrash: false,
+    isOfferedInTrash: false,
     run: (actions, highlight) => actions.askAbout(highlight),
   },
   {
     label: 'Copy as Markdown',
     icon: 'copy',
-    offeredInTrash: true,
+    isOfferedInTrash: true,
     run: (actions, highlight) => actions.copyMarkdown(highlight),
   },
   {
     label: 'Open in chat',
     icon: 'open',
-    offeredInTrash: false,
+    isOfferedInTrash: false,
     run: (actions, highlight) => actions.jumpTo(highlight),
   },
 ]
@@ -36,7 +36,7 @@ const NOT_FOUND_LABEL = 'Not found in chat'
 interface RowBodyProps {
   highlight: Highlight
   now: number
-  orphan: boolean
+  isOrphan: boolean
 }
 
 const RowNote = ({ note }: { note: string }) => (
@@ -46,9 +46,12 @@ const RowNote = ({ note }: { note: string }) => (
   </span>
 )
 
-const RowMeta = ({ highlight, now, orphan }: RowBodyProps) => (
+const RowMeta = ({ highlight, now, isOrphan }: RowBodyProps) => (
   <span class="hl-row__meta">
-    <time dateTime={new Date(highlight.createdAt).toISOString()}>
+    <time
+      dateTime={new Date(highlight.createdAt).toISOString()}
+      title={absoluteDate(highlight.createdAt)}
+    >
       {timeAgo(highlight.createdAt, now)}
     </time>
     {highlight.tags.map((tag) => (
@@ -56,7 +59,7 @@ const RowMeta = ({ highlight, now, orphan }: RowBodyProps) => (
         {tagLabel(tag)}
       </span>
     ))}
-    {orphan && <span class="hl-row__orphan">{NOT_FOUND_LABEL}</span>}
+    {isOrphan && <span class="hl-row__orphan">{NOT_FOUND_LABEL}</span>}
   </span>
 )
 
@@ -72,13 +75,17 @@ const RowBody = (props: RowBodyProps) => (
 )
 
 interface HighlightRowProps extends RowBodyProps {
-  inTrash: boolean
+  isInTrash: boolean
   actions: UiActions
 }
 
-const RowActions = ({ highlight, inTrash, actions }: Omit<HighlightRowProps, 'now' | 'orphan'>) => (
+const RowActions = ({
+  highlight,
+  isInTrash,
+  actions,
+}: Omit<HighlightRowProps, 'now' | 'isOrphan'>) => (
   <div class="hl-row__actions">
-    {ROW_ACTIONS.filter((action) => !inTrash || action.offeredInTrash).map((action) => (
+    {ROW_ACTIONS.filter((action) => !isInTrash || action.isOfferedInTrash).map((action) => (
       <button
         key={action.label}
         type="button"
@@ -93,9 +100,9 @@ const RowActions = ({ highlight, inTrash, actions }: Omit<HighlightRowProps, 'no
   </div>
 )
 
-export const HighlightRow = ({ inTrash, actions, ...body }: HighlightRowProps) => (
+export const HighlightRow = ({ isInTrash, actions, ...body }: HighlightRowProps) => (
   <article class="hl-row">
-    {inTrash ? (
+    {isInTrash ? (
       <div class="hl-row__main">
         <RowBody {...body} />
       </div>
@@ -104,6 +111,6 @@ export const HighlightRow = ({ inTrash, actions, ...body }: HighlightRowProps) =
         <RowBody {...body} />
       </button>
     )}
-    <RowActions highlight={body.highlight} inTrash={inTrash} actions={actions} />
+    <RowActions highlight={body.highlight} isInTrash={isInTrash} actions={actions} />
   </article>
 )

@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { DAY_MS, TRASH_LABEL } from '@/model'
+import { PURGE_AFTER_MS } from '@/retention'
 import { FIXED_TIME, fakeActions, makeConversation, makeHighlight, makeQuote } from '@/testing'
-import type { UiActions } from '../types'
-import type { LibraryGroup } from './library-filter'
+import type { LibraryGroup, UiActions } from '../types'
 import { TrashSection } from './TrashSection'
+import { absoluteDate } from './time-ago'
 
 const NOW = FIXED_TIME
+const DELETE_CHAT = 'Delete chat now'
 
 const TRASHED_DAYS_AGO = 18
 
@@ -62,12 +64,28 @@ describe('TrashSection', () => {
   })
 
   it.each([
-    { daysAgo: 18, expected: 'Removed in 12 days' },
-    { daysAgo: 29, expected: 'Removed in 1 day' },
-    { daysAgo: 30, expected: 'Removed today' },
+    { daysAgo: 18, expected: 'Deleted permanently in 12 days' },
+    { daysAgo: 29, expected: 'Deleted permanently in 1 day' },
+    { daysAgo: 30, expected: 'Deleted permanently today' },
   ])('says "$expected" for a chat trashed $daysAgo days ago', ({ daysAgo, expected }) => {
     renderTrash([groupOf('a', 'Kafka sizing', daysAgo)])
     expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
+  it('names the exact day the chat and its highlights are deleted for good', () => {
+    const group = groupOf('a', 'Kafka sizing')
+    renderTrash([group])
+    const purgeAt = (group.conversation.trashedAt ?? 0) + PURGE_AFTER_MS
+    expect(screen.getByText('Deleted permanently in 12 days')).toHaveAttribute(
+      'title',
+      `Deleted permanently on ${absoluteDate(purgeAt)}`,
+    )
+  })
+
+  it('gives no exact day when the deletion time is unknown', () => {
+    const group = groupOf('a', 'Kafka sizing')
+    renderTrash([{ ...group, conversation: { ...group.conversation, trashedAt: null } }])
+    expect(screen.getByText(/^Deleted permanently/)).not.toHaveAttribute('title')
   })
 
   it('copies a deleted highlight as Markdown', () => {
@@ -81,8 +99,10 @@ describe('TrashSection', () => {
   it('asks before deleting and does not purge yet', () => {
     const purgeConversation = vi.fn()
     renderTrash([groupOf('a', 'Kafka sizing')], { actions: fakeActions({ purgeConversation }) })
-    fireEvent.click(screen.getByRole('button', { name: 'Delete now' }))
-    expect(screen.getByText('Delete permanently?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: DELETE_CHAT }))
+    expect(
+      screen.getByText('Delete this chat and all of its highlights permanently?'),
+    ).toBeInTheDocument()
     expect(purgeConversation).not.toHaveBeenCalled()
   })
 
@@ -91,17 +111,17 @@ describe('TrashSection', () => {
     renderTrash([groupOf('a', 'Kafka sizing'), groupOf('b', 'Raft notes')], {
       actions: fakeActions({ purgeConversation }),
     })
-    fireEvent.click(buttonAt('Delete now', 1))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(buttonAt(DELETE_CHAT, 1))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
     expect(purgeConversation).toHaveBeenCalledExactlyOnceWith('b')
   })
 
   it('goes back to the plain button when the question is cancelled', () => {
     const purgeConversation = vi.fn()
     renderTrash([groupOf('a', 'Kafka sizing')], { actions: fakeActions({ purgeConversation }) })
-    fireEvent.click(screen.getByRole('button', { name: 'Delete now' }))
+    fireEvent.click(screen.getByRole('button', { name: DELETE_CHAT }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('button', { name: 'Delete now' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: DELETE_CHAT })).toBeInTheDocument()
     expect(purgeConversation).not.toHaveBeenCalled()
   })
 })

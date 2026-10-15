@@ -1,6 +1,6 @@
 import { APP_SLUG } from '@/model'
 
-export interface DownloadFile {
+interface DownloadFile {
   name: string
   text: string
   type: string

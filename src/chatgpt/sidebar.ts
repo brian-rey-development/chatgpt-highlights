@@ -10,8 +10,12 @@ import {
   OPEN_ATTR,
   SIDEBAR_DESTINATION,
 } from './selectors'
+import { conversationIdFromPath } from './url'
 import { isVisible } from './visibility'
 
+const ARIA_LABEL_ATTR = 'aria-label'
+const ICON_SELECTOR = 'svg'
+const ANY_ELEMENT = '*'
 const LABEL = 'Highlights'
 const DESTINATION_ID = 'hl:highlights'
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -43,11 +47,11 @@ const buildIcon = (doc: Document): SVGElement => {
   return svg
 }
 
-const swapIcon = (item: HTMLElement): void => {
-  const icon = buildIcon(item.ownerDocument)
-  const previous = item.querySelector('svg')
+const swapIcon = (entry: HTMLElement): void => {
+  const icon = buildIcon(entry.ownerDocument)
+  const previous = entry.querySelector(ICON_SELECTOR)
   if (!previous) {
-    item.prepend(icon)
+    entry.prepend(icon)
     return
   }
   for (const name of INHERITED_ICON_ATTRIBUTES) {
@@ -57,32 +61,32 @@ const swapIcon = (item: HTMLElement): void => {
   previous.replaceWith(icon)
 }
 
-const labelNodes = (item: HTMLElement): Text[] =>
-  [item, ...item.querySelectorAll('*')].flatMap((element) =>
+const labelNodes = (entry: HTMLElement): Text[] =>
+  [entry, ...entry.querySelectorAll(ANY_ELEMENT)].flatMap((element) =>
     [...element.childNodes].filter(
       (node): node is Text => node instanceof Text && node.data.trim() !== '',
     ),
   )
 
-const relabel = (item: HTMLElement): void => {
-  const [label, ...extras] = labelNodes(item)
+const relabel = (entry: HTMLElement): void => {
+  const [label, ...extras] = labelNodes(entry)
   if (label) label.data = LABEL
   for (const extra of extras) extra.remove()
 }
 
 const cloneAsItem = (source: HTMLElement): HTMLElement => {
   // A clone keeps its element type
-  const item = source.cloneNode(true) as HTMLElement
-  for (const name of item.getAttributeNames()) {
-    if (DROPPED_ATTRIBUTES.test(name)) item.removeAttribute(name)
+  const entry = source.cloneNode(true) as HTMLElement
+  for (const name of entry.getAttributeNames()) {
+    if (DROPPED_ATTRIBUTES.test(name)) entry.removeAttribute(name)
   }
-  item.classList.remove(NAV_ACTIVE_CLASS)
-  item.setAttribute('aria-label', LABEL)
-  item.setAttribute(DESTINATION_ATTR, DESTINATION_ID)
-  item.setAttribute(NAV_ATTR, '')
-  relabel(item)
-  swapIcon(item)
-  return item
+  entry.classList.remove(NAV_ACTIVE_CLASS)
+  entry.setAttribute(ARIA_LABEL_ATTR, LABEL)
+  entry.setAttribute(DESTINATION_ATTR, DESTINATION_ID)
+  entry.setAttribute(NAV_ATTR, '')
+  relabel(entry)
+  swapIcon(entry)
+  return entry
 }
 
 const anchorFor = (doc: Document): HTMLElement | null => {
@@ -94,8 +98,8 @@ const anchorFor = (doc: Document): HTMLElement | null => {
   )
 }
 
-export const isItemShown = (item: HTMLElement | null): boolean =>
-  item?.isConnected === true && isVisible(item)
+export const isItemShown = (entry: HTMLElement | null): boolean =>
+  entry?.isConnected === true && isVisible(entry)
 
 export const ensureSidebarItem = (doc: Document, onOpen: () => void): HTMLElement | null => {
   const existing = doc.querySelector<HTMLElement>(`[${NAV_ATTR}]`)
@@ -103,8 +107,8 @@ export const ensureSidebarItem = (doc: Document, onOpen: () => void): HTMLElemen
   const anchor = anchorFor(doc)
   if (!anchor) return existing
   existing?.remove()
-  const item = cloneAsItem(anchor)
-  item.addEventListener(
+  const entry = cloneAsItem(anchor)
+  entry.addEventListener(
     'click',
     (event) => {
       event.stopPropagation()
@@ -112,11 +116,11 @@ export const ensureSidebarItem = (doc: Document, onOpen: () => void): HTMLElemen
     },
     { capture: true },
   )
-  anchor.after(item)
-  return item
+  anchor.after(entry)
+  return entry
 }
 
 export const conversationLink = (doc: Document, conversationId: string): HTMLAnchorElement | null =>
-  [...doc.querySelectorAll<HTMLAnchorElement>(HISTORY_LINK)].find((link) =>
-    link.href.endsWith(`/c/${conversationId}`),
+  [...doc.querySelectorAll<HTMLAnchorElement>(HISTORY_LINK)].find(
+    (link) => conversationIdFromPath(link.pathname) === conversationId,
   ) ?? null

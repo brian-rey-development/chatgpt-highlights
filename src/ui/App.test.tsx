@@ -70,7 +70,7 @@ describe('App', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Highlight removed')
   })
 
-  it('renders the library only when it has a model and a frame', () => {
+  it('renders the library only when it has a frame', () => {
     const { state, library, libraryFrame } = makeState()
     render(<App state={state} actions={fakeActions()} />)
     act(() => {
@@ -81,6 +81,13 @@ describe('App', () => {
       libraryFrame.value = FRAME
     })
     expect(screen.getByRole('region', { name: LIBRARY_LABEL })).toBeInTheDocument()
+  })
+
+  it('shows the library as loading while it has a frame but no snapshot yet', () => {
+    const { state, libraryFrame } = makeState()
+    libraryFrame.value = FRAME
+    render(<App state={state} actions={fakeActions()} />)
+    expect(screen.getByRole('region', { name: LIBRARY_LABEL })).toHaveAttribute('aria-busy', 'true')
   })
 
   it('marks the library rows whose quote was not found', () => {

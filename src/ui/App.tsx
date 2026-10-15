@@ -27,7 +27,7 @@ const ToastLayer = ({ state, actions }: AppProps) => {
 const LibraryLayer = ({ state, actions }: AppProps) => {
   const library = state.library.value
   const frame = state.libraryFrame.value
-  if (!library || !frame) return null
+  if (!frame) return null
   return (
     <LibraryView
       model={library}

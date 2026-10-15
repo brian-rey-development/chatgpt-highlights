@@ -1,11 +1,12 @@
 .hl-library__title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   margin: 8px 0 20px;
 }
 
 .hl-library__title {
+  flex: 1;
   margin: 0;
   font-size: var(--hl-text-2xl);
   font-weight: 400;

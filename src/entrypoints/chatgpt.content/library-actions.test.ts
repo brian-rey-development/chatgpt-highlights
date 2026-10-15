@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { conversationLink, conversationUrl } from '@/chatgpt'
-import { err, ok } from '@/errors'
+import { err, ok, userMessageOf } from '@/errors'
 import { highlightToMarkdown, renderMarkdown } from '@/markdown'
 import { COPIED_MESSAGE, fieldOf, JSON_MEDIA_TYPE, type Snapshot } from '@/model'
 import { createPainter } from '@/painter'
@@ -44,13 +44,13 @@ const here = makeHighlight({
   tags: ['moon'],
 })
 const there = makeHighlight({ id: 'there', conversationId: OTHER_CONVERSATION_ID })
-const SNAPSHOT: Snapshot = {
-  conversations: [
-    makeConversation({ id: FIXTURE_CONVERSATION_ID, title: 'Tides' }),
-    makeConversation({ id: OTHER_CONVERSATION_ID, title: 'Second chat' }),
-  ],
-  highlights: [here, there],
-}
+const tides = makeConversation({ id: FIXTURE_CONVERSATION_ID, title: 'Tides' })
+const second = makeConversation({ id: OTHER_CONVERSATION_ID, title: 'Second chat' })
+const SNAPSHOT: Snapshot = { conversations: [tides, second], highlights: [here, there] }
+const GROUPS = [
+  { conversation: tides, highlights: [here] },
+  { conversation: second, highlights: [there] },
+]
 
 let store: Store
 let background: FakeBackground
@@ -188,8 +188,8 @@ describe('exportMarkdown', () => {
     downloads = installFakeDownload()
   })
 
-  it('downloads the given highlights grouped by chat under a dated name', async () => {
-    actions().exportMarkdown([here, there])
+  it('downloads the given groups, one section per chat, under a dated name', async () => {
+    actions().exportMarkdown(GROUPS)
     expect(downloads.files[0]).toMatchObject({
       name: exportFileName('md', FIXED_TIME),
       type: 'text/markdown',
@@ -207,18 +207,12 @@ describe('exportMarkdown', () => {
   })
 
   it('exports only what it is given', async () => {
-    actions().exportMarkdown([there])
+    actions().exportMarkdown([{ conversation: second, highlights: [there] }])
     expect(await downloads.files[0]?.text()).not.toContain('Tides')
   })
 
-  it('titles a chat the snapshot does not know by its address', async () => {
-    store.library.value = null
-    actions().exportMarkdown([here])
-    expect(await downloads.files[0]?.text()).toContain(`## ${conversationUrl(here.conversationId)}`)
-  })
-
   it('asks the background for nothing', () => {
-    actions().exportMarkdown([here])
+    actions().exportMarkdown(GROUPS)
     expect(background.sent()).toEqual([])
   })
 })
@@ -244,7 +238,7 @@ describe('exportBackup', () => {
     background.answerWith(() => err(WRITE_FAILURE))
     actions().exportBackup()
     await settle()
-    expect(lastToast()).toBe(WRITE_FAILURE.message)
+    expect(lastToast()).toBe(userMessageOf(WRITE_FAILURE))
     expect(downloads.files).toEqual([])
   })
 })
@@ -260,10 +254,11 @@ describe('importBackup', () => {
   })
 
   it('shows the error when the backup is rejected', async () => {
-    background.answerWith(() => err({ code: 'invalid_backup', message: 'Not a backup file' }))
+    const rejection = { code: 'invalid_backup', message: 'Not a backup file' } as const
+    background.answerWith(() => err(rejection))
     actions().importBackup(fileWith('nope'))
     await settle()
-    expect(lastToast()).toBe('Not a backup file')
+    expect(lastToast()).toBe(userMessageOf(rejection))
   })
 
   it('says so when the file cannot be read', async () => {
@@ -291,7 +286,7 @@ describe('purgeConversation', () => {
     background.answerWith(() => err(WRITE_FAILURE))
     actions().purgeConversation(OTHER_CONVERSATION_ID)
     await settle()
-    expect(lastToast()).toBe(WRITE_FAILURE.message)
+    expect(lastToast()).toBe(userMessageOf(WRITE_FAILURE))
     expect(fieldOf(background.sent()[0], 'type')).toBe('conversation.purge')
   })
 })

@@ -19,3 +19,39 @@
 .hl-tags__input::placeholder {
   color: var(--hl-text-tertiary);
 }
+
+.hl-tag--removable {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.hl-tag__remove {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--hl-radius-round);
+  color: var(--hl-text-tertiary);
+}
+
+.hl-tag__remove:hover {
+  background: var(--hl-border);
+  color: var(--hl-text);
+}
+
+.hl-tag__remove svg {
+  width: 12px;
+  height: 12px;
+}
+
+.hl-tags__hint {
+  margin-left: auto;
+  color: var(--hl-text-tertiary);
+  font-size: var(--hl-text-xs);
+}
+
+.hl-tags__hint--over {
+  color: var(--hl-danger);
+}

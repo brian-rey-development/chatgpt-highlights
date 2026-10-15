@@ -18,6 +18,8 @@ const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
 
 const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 
+const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' })
+
 const capitalize = (text: string): string => `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 
 export const timeAgo = (then: number, now: number): string => {
@@ -27,3 +29,5 @@ export const timeAgo = (then: number, now: number): string => {
   const [unit, size] = match
   return capitalize(formatter.format(-Math.floor(elapsed / size), unit))
 }
+
+export const absoluteDate = (timestamp: number): string => dateFormatter.format(timestamp)

@@ -8,6 +8,13 @@ export const COLOR_LABELS: Readonly<Record<HighlightColor, string>> = {
   purple: 'Purple',
 }
 
+export const colorLabel = (color: HighlightColor): string => COLOR_LABELS[color]
+
+const SIZE_CLASS: Readonly<Record<'sm' | 'md', string>> = {
+  sm: 'hl-dots',
+  md: 'hl-dots hl-dots--md',
+}
+
 interface ColorDotsProps {
   current: HighlightColor | null
   size: 'sm' | 'md'
@@ -16,7 +23,7 @@ interface ColorDotsProps {
 }
 
 export const ColorDots = ({ current, size, labelFor, onPick }: ColorDotsProps) => (
-  <div class={`hl-dots hl-dots--${size}`}>
+  <div class={SIZE_CLASS[size]}>
     {HIGHLIGHT_COLORS.map((color) => (
       <button
         key={color}

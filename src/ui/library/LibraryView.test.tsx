@@ -9,7 +9,7 @@ import {
   makeHighlight,
   makeQuote,
 } from '@/testing'
-import type { UiActions } from '../types'
+import type { LibraryModel, UiActions } from '../types'
 import { LibraryView, PAGE_SIZE } from './LibraryView'
 
 const NOW = FIXED_TIME
@@ -56,15 +56,21 @@ const BASE: Snapshot = {
 }
 
 interface Options {
+  model?: LibraryModel | null
   snapshot?: Snapshot
   actions?: UiActions
   orphanIds?: ReadonlySet<string>
 }
 
-const renderLibrary = ({ snapshot = BASE, actions, orphanIds = new Set() }: Options = {}) =>
+const renderLibrary = ({
+  snapshot = BASE,
+  model = { snapshot, now: NOW },
+  actions,
+  orphanIds = new Set(),
+}: Options = {}) =>
   render(
     <LibraryView
-      model={{ snapshot, now: NOW }}
+      model={model}
       frame={FRAME}
       orphanIds={orphanIds}
       actions={actions ?? fakeActions()}
@@ -124,6 +130,75 @@ describe('LibraryView layout', () => {
   })
 })
 
+describe('LibraryView closing and importing', () => {
+  it('closes from the close button in the header', () => {
+    const closeLibrary = vi.fn()
+    renderLibrary({ actions: fakeActions({ closeLibrary }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Close highlights' }))
+    expect(closeLibrary).toHaveBeenCalledOnce()
+  })
+
+  it('imports a backup from its own button, apart from the export menu', () => {
+    const importBackup = vi.fn()
+    const { container } = renderLibrary({ actions: fakeActions({ importBackup }) })
+    const input = container.querySelector('input[type="file"]')
+    if (!(input instanceof HTMLInputElement)) throw new Error('no file input')
+    const file = new File(['{}'], 'backup.json')
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(importBackup).toHaveBeenCalledExactlyOnceWith(file)
+    expect(screen.getByRole('button', { name: 'Import backup' })).toBeInTheDocument()
+  })
+})
+
+describe('LibraryView loading', () => {
+  it('says it is loading, busy, instead of flashing an empty library', () => {
+    renderLibrary({ model: null })
+    const view = screen.getByRole('region', { name: LIBRARY_LABEL })
+    expect(view).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('status')).toHaveTextContent('Loading highlights')
+    expect(screen.queryByText(/No highlights yet/)).not.toBeInTheDocument()
+  })
+
+  it('is no longer busy once the snapshot arrives', () => {
+    const { rerender } = renderLibrary({ model: null })
+    rerender(
+      <LibraryView
+        model={{ snapshot: BASE, now: NOW }}
+        frame={FRAME}
+        orphanIds={new Set()}
+        actions={fakeActions()}
+      />,
+    )
+    expect(screen.getByRole('region', { name: LIBRARY_LABEL })).toHaveAttribute(
+      'aria-busy',
+      'false',
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
+
+describe('LibraryView focus', () => {
+  it('takes focus when it opens and gives it back when it closes', () => {
+    const opener = document.body.appendChild(document.createElement('button'))
+    opener.focus()
+    const { unmount } = renderLibrary()
+    expect(screen.getByRole('region', { name: LIBRARY_LABEL })).toHaveFocus()
+    unmount()
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
+
+  it('keeps Tab inside the view', () => {
+    renderLibrary()
+    const [first] = screen.getAllByRole('button')
+    const last = screen.getAllByRole('button').at(-1)
+    if (!first || !last) throw new Error('no buttons')
+    last.focus()
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(first).toHaveFocus()
+  })
+})
+
 describe('LibraryView interaction', () => {
   it('jumps to the passage when a row is clicked', () => {
     const jumpTo = vi.fn()
@@ -162,7 +237,9 @@ describe('LibraryView interaction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Green' }))
     fireEvent.click(screen.getByRole('button', { name: 'Export' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Markdown' }))
-    expect(exportMarkdown).toHaveBeenCalledExactlyOnceWith([BASE.highlights[0]])
+    expect(exportMarkdown).toHaveBeenCalledExactlyOnceWith([
+      { conversation: bayes, highlights: [BASE.highlights[0]] },
+    ])
   })
 })
 
@@ -207,14 +284,14 @@ describe('LibraryView Recently deleted', () => {
     const section = screen.getByRole('region', { name: TRASH_LABEL })
     expect(within(section).getByText('Kafka sizing')).toBeInTheDocument()
     expect(within(section).getByText('Size partitions for peak throughput')).toBeInTheDocument()
-    expect(within(section).getByText('Removed in 21 days')).toBeInTheDocument()
+    expect(within(section).getByText('Deleted permanently in 21 days')).toBeInTheDocument()
   })
 
   it('purges a chat after the inline confirmation', () => {
     const purgeConversation = vi.fn()
     renderLibrary({ actions: fakeActions({ purgeConversation }) })
-    fireEvent.click(screen.getByRole('button', { name: 'Delete now' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chat now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
     expect(purgeConversation).toHaveBeenCalledExactlyOnceWith('kafka')
   })
 

@@ -1,13 +1,19 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { HIGHLIGHT_COLORS } from '@/model'
-import { COLOR_LABELS, ColorDots } from './ColorDots'
+import { COLOR_LABELS, ColorDots, colorLabel } from './ColorDots'
 
 const labelFor = (color: string) => `Pick ${color}`
 
 describe('COLOR_LABELS', () => {
   it.each(HIGHLIGHT_COLORS)('writes %s in sentence case', (color) => {
     expect(COLOR_LABELS[color]).toBe(`${color.charAt(0).toUpperCase()}${color.slice(1)}`)
+  })
+})
+
+describe('colorLabel', () => {
+  it.each(HIGHLIGHT_COLORS)('names %s the way the library filters do', (color) => {
+    expect(colorLabel(color)).toBe(COLOR_LABELS[color])
   })
 })
 
@@ -44,5 +50,12 @@ describe('ColorDots', () => {
       <ColorDots current={null} size="md" labelFor={labelFor} onPick={vi.fn()} />,
     )
     expect(container.firstElementChild).toHaveClass('hl-dots--md')
+  })
+
+  it('adds no size class for the default small size', () => {
+    const { container } = render(
+      <ColorDots current={null} size="sm" labelFor={labelFor} onPick={vi.fn()} />,
+    )
+    expect(container.firstElementChild).toHaveAttribute('class', 'hl-dots')
   })
 })

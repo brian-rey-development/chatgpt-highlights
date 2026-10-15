@@ -8,6 +8,10 @@
   line-height: 24px;
 }
 
+.hl-library:focus {
+  outline: none;
+}
+
 .hl-library__page {
   max-width: 680px;
   margin: 0 auto;

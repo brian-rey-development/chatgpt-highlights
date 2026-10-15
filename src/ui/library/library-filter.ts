@@ -1,10 +1,5 @@
 import type { Conversation, Highlight, Snapshot } from '@/model'
-import type { LibraryFilter } from '../types'
-
-export interface LibraryGroup {
-  conversation: Conversation
-  highlights: Highlight[]
-}
+import type { LibraryFilter, LibraryGroup } from '../types'
 
 interface LibrarySections {
   active: LibraryGroup[]
