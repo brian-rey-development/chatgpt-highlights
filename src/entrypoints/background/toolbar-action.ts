@@ -1,6 +1,7 @@
 import { type Browser, browser } from 'wxt/browser'
 import { CHATGPT_MATCH, LIBRARY_URL } from '@/chatgpt'
 import { sendTabCommand } from '@/messaging'
+import { reportFailure } from './report-failure'
 
 type Tab = Browser.tabs.Tab
 type IdentifiedTab = Tab & { id: number }
@@ -41,5 +42,5 @@ export const openLibrary = async (): Promise<void> => {
 }
 
 export const startToolbarAction = (): void => {
-  browser.action.onClicked.addListener(openLibrary)
+  browser.action.onClicked.addListener(() => openLibrary().catch(reportFailure))
 }

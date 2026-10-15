@@ -2,9 +2,10 @@ import { browser } from 'wxt/browser'
 import { DAY_MS, MINUTE_MS } from '@/model'
 import { type PendingDatabase, purgeExpired } from '@/storage'
 import { announceChange } from './announce'
+import { reportFailure } from './report-failure'
 
 export const PURGE_ALARM = 'purge'
-const PURGE_PERIOD_MINUTES = DAY_MS / MINUTE_MS
+export const PURGE_PERIOD_MINUTES = DAY_MS / MINUTE_MS
 
 export const runPurge = async (database: PendingDatabase): Promise<void> => {
   const removed = await purgeExpired(await database, Date.now())
@@ -19,7 +20,7 @@ const scheduleDailyAlarm = async (): Promise<void> => {
 
 export const startPurge = async (database: PendingDatabase): Promise<void> => {
   browser.alarms.onAlarm.addListener(({ name }) => {
-    if (name === PURGE_ALARM) return runPurge(database)
+    if (name === PURGE_ALARM) return runPurge(database).catch(reportFailure)
   })
   await scheduleDailyAlarm()
   await runPurge(database)

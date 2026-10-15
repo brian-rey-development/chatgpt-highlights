@@ -138,7 +138,9 @@ const deleteAny =
   async (run) => {
     const { highlights } = await readSnapshot(run.db)
     const target = highlights[pick % Math.max(highlights.length, 1)]
-    if (target) run.deleted.push(await deleteHighlight(run.db, target.id))
+    if (!target) return
+    const deleted = await deleteHighlight(run.db, target.id)
+    if (deleted) run.deleted.push(deleted)
   }
 
 const restoreLast: Step = async (run) => {

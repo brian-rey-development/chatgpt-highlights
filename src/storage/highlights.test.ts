@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_COLOR } from '@/model'
+import { DEFAULT_COLOR, type DeletedHighlight } from '@/model'
 import {
   FIXED_TIME,
   LATER_TIME,
@@ -13,6 +13,12 @@ import { type Database, openDatabase } from './database'
 import { createHighlight, deleteHighlight, restoreHighlight, updateHighlight } from './highlights'
 
 let db: Database
+
+const deletedOf = async (id: string): Promise<DeletedHighlight> => {
+  const deleted = await deleteHighlight(db, id)
+  if (deleted === null) throw new Error(`Highlight ${id} was not stored`)
+  return deleted
+}
 
 beforeEach(async () => {
   db = await openDatabase(crypto.randomUUID())
@@ -132,8 +138,17 @@ describe('deleteHighlight', () => {
     expect(await db.getAllKeys('conversations')).toEqual(['conversation-2'])
   })
 
-  it('throws not_found for an unknown id', async () => {
-    await expect(deleteHighlight(db, 'ghost')).rejects.toMatchObject({ code: 'not_found' })
+  it('succeeds with null for an unknown id and changes nothing', async () => {
+    const created = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
+    expect(await deleteHighlight(db, 'ghost')).toBeNull()
+    expect(await db.getAllKeys('highlights')).toEqual([created.id])
+    expect(await db.count('conversations')).toBe(1)
+  })
+
+  it('succeeds with null when the same delete is repeated', async () => {
+    const created = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
+    expect(await deleteHighlight(db, created.id)).not.toBeNull()
+    expect(await deleteHighlight(db, created.id)).toBeNull()
   })
 
   it('throws not_found and keeps the highlight when its conversation row is missing', async () => {
@@ -146,7 +161,7 @@ describe('deleteHighlight', () => {
 describe('restoreHighlight', () => {
   it('recreates the highlight and its conversation after the last one was deleted', async () => {
     const created = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
-    const deleted = await deleteHighlight(db, created.id)
+    const deleted = await deletedOf(created.id)
     expect(await restoreHighlight(db, deleted)).toEqual(created)
     expect(await db.get('highlights', created.id)).toEqual(created)
     expect(await db.get('conversations', deleted.conversation.id)).toEqual(deleted.conversation)
@@ -155,7 +170,7 @@ describe('restoreHighlight', () => {
   it('keeps the current conversation row when it still exists', async () => {
     const created = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
     await createHighlight(db, makeNewHighlight(), FIXED_TIME)
-    const deleted = await deleteHighlight(db, created.id)
+    const deleted = await deletedOf(created.id)
     const renamed = makeConversation({ title: 'Renamed since', updatedAt: LATER_TIME })
     await db.put('conversations', renamed)
     await restoreHighlight(db, deleted)
@@ -164,7 +179,7 @@ describe('restoreHighlight', () => {
 
   it('leaves a highlight that came back another way where it is', async () => {
     const created = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
-    const deleted = await deleteHighlight(db, created.id)
+    const deleted = await deletedOf(created.id)
     const elsewhere = makeConversation({ id: 'conversation-elsewhere' })
     const returned = { ...created, conversationId: elsewhere.id }
     await db.put('conversations', elsewhere)
@@ -175,7 +190,7 @@ describe('restoreHighlight', () => {
 
   it('is safe to apply twice', async () => {
     const created = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
-    const deleted = await deleteHighlight(db, created.id)
+    const deleted = await deletedOf(created.id)
     await restoreHighlight(db, deleted)
     await restoreHighlight(db, deleted)
     expect(await db.count('highlights')).toBe(1)

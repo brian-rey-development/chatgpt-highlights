@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import type { Snapshot } from '@/model'
+import { describe, expect, it, vi } from 'vitest'
+import { LIMITS, type Snapshot } from '@/model'
 import { MAX_DATE_MS } from '@/schemas'
 import { EMPTY_SNAPSHOT, FIXED_TIME, makeConversation, makeHighlight } from '@/testing'
 import { BACKUP_FORMAT, BACKUP_VERSION, parseBackup, serializeBackup } from './backup-file'
@@ -87,6 +87,24 @@ describe('parseBackup', () => {
 
   it('throws invalid_backup for an export time past the date range', () => {
     expect(() => parseBackup(fileWith({ exportedAt: MAX_DATE_MS + 1 }))).toThrow(invalidBackup())
+  })
+
+  it('throws invalid_backup for a file larger than the size cap without parsing it', () => {
+    const spy = vi.spyOn(JSON, 'parse')
+    expect(() => parseBackup('x'.repeat(LIMITS.backupChars + 1))).toThrow(
+      invalidBackup(/too large/),
+    )
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { name: 'conversations', cap: LIMITS.backupConversations },
+    { name: 'highlights', cap: LIMITS.backupHighlights },
+  ])('throws invalid_backup for more than $cap $name before validating any of them', (limit) => {
+    const crowd = Array.from({ length: limit.cap + 1 }, () => null)
+    expect(() => parseBackup(fileWith({ [limit.name]: crowd }))).toThrow(
+      invalidBackup(`${limit.name}: .*<=${limit.cap}`),
+    )
   })
 
   it('explains what is wrong in the message', () => {

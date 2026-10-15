@@ -73,6 +73,36 @@ const invalid: { name: string; message: unknown }[] = [
     message: withInput({ quote: makeQuote({ start: 10, end: 5 }) }),
   },
   { name: 'a negative offset', message: withInput({ quote: makeQuote({ start: -1 }) }) },
+  {
+    name: 'an end far past the quote',
+    message: withInput({ quote: makeQuote({ exact: 'hi', start: 0, end: 999_999_999 }) }),
+  },
+  {
+    name: 'a span shorter than the quote',
+    message: withInput({ quote: makeQuote({ exact: 'highlighted text', start: 7, end: 9 }) }),
+  },
+  {
+    name: 'a start that is not a safe integer',
+    message: withInput({ quote: makeQuote({ exact: 'hi', start: 1e300, end: 1e300 + 2 }) }),
+  },
+  {
+    name: 'a fractional start',
+    message: withInput({ quote: makeQuote({ start: 7.5, end: 23.5 }) }),
+  },
+  {
+    name: 'a start past the message length cap',
+    message: withInput({
+      quote: makeQuote({ start: LIMITS.messageChars + 1, end: LIMITS.messageChars + 17 }),
+    }),
+  },
+  {
+    name: 'an over-long id',
+    message: { type: 'highlight.delete', id: 'i'.repeat(LIMITS.idChars + 1) },
+  },
+  {
+    name: 'an over-long conversation title',
+    message: withInput({ conversationTitle: 't'.repeat(LIMITS.titleChars + 1) }),
+  },
   { name: 'an extra key on the input', message: withInput({ extra: 1 }) },
   { name: 'an empty patch', message: { type: 'highlight.update', id: 'h', patch: {} } },
   {
@@ -122,6 +152,14 @@ const invalid: { name: string; message: unknown }[] = [
     message: { type: 'conversation.check', conversationId: 'c', outcome: { kind: 'gone' } },
   },
   {
+    name: 'an exists outcome with an over-long title',
+    message: {
+      type: 'conversation.check',
+      conversationId: 'c',
+      outcome: { kind: 'exists', title: 't'.repeat(LIMITS.titleChars + 1) },
+    },
+  },
+  {
     name: 'an exists outcome without a title',
     message: { type: 'conversation.check', conversationId: 'c', outcome: { kind: 'exists' } },
   },
@@ -142,6 +180,19 @@ describe('requestSchema', () => {
 
   it.each(invalid)('rejects $name', ({ message }) => {
     expect(requestSchema.safeParse(message).success).toBe(false)
+  })
+})
+
+describe('quote offsets', () => {
+  it('accepts a quote deep inside a long message', () => {
+    const start = LIMITS.messageChars - 16
+    const quote = makeQuote({ start, end: start + 16 })
+    expect(requestSchema.safeParse(withInput({ quote })).success).toBe(true)
+  })
+
+  it('accepts a quote whose context is shorter than the context cap', () => {
+    const quote = makeQuote({ exact: 'x', prefix: '', suffix: '', start: 0, end: 1 })
+    expect(requestSchema.safeParse(withInput({ quote })).success).toBe(true)
   })
 })
 
@@ -171,6 +222,11 @@ describe('entity schemas', () => {
     },
   ])('rejects a highlight with $name', ({ value }) => {
     expect(highlightSchema.safeParse(value).success).toBe(false)
+  })
+
+  it('rejects a conversation with an over-long title', () => {
+    const title = 't'.repeat(LIMITS.titleChars + 1)
+    expect(conversationSchema.safeParse(makeConversation({ title })).success).toBe(false)
   })
 
   it.each([

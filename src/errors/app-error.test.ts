@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AppFailure, messageOf, toAppError } from './app-error'
+import { AppFailure, type ErrorCode, messageOf, toAppError, userMessageOf } from './app-error'
 
 describe('AppFailure', () => {
   it('is an Error carrying its code and message', () => {
@@ -38,5 +38,30 @@ describe('toAppError', () => {
 
   it('maps a thrown non-error value to unexpected', () => {
     expect(toAppError('nope')).toEqual({ code: 'unexpected', message: 'nope' })
+  })
+})
+
+const ERROR_CODES: readonly ErrorCode[] = [
+  'invalid_message',
+  'invalid_backup',
+  'not_found',
+  'unreachable',
+  'unexpected',
+]
+const RAW_TEXT = 'b3f1c2d4-1111-2222-3333-444455556666 failed in IDBObjectStore.put'
+
+describe('userMessageOf', () => {
+  it.each(ERROR_CODES.map((code) => ({ code })))(
+    'never shows the raw text of a $code error',
+    ({ code }) => {
+      const message = userMessageOf({ code, message: RAW_TEXT })
+      expect(message).not.toContain(RAW_TEXT)
+      expect(message).not.toBe('')
+    },
+  )
+
+  it('gives every error code its own sentence', () => {
+    const messages = ERROR_CODES.map((code) => userMessageOf({ code, message: RAW_TEXT }))
+    expect(new Set(messages).size).toBe(ERROR_CODES.length)
   })
 })

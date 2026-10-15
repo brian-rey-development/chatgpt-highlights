@@ -1,5 +1,5 @@
 import type { CheckOutcome, Conversation, ConversationHighlights, Snapshot } from '@/model'
-import { isPurgeable, transition } from '@/retention'
+import { isPurgeable, PURGE_AFTER_MS, transition } from '@/retention'
 import { type Database, inTransaction, type Transaction } from './database'
 
 export const ensureConversation = async (
@@ -28,12 +28,15 @@ export const deleteConversationIfEmpty = async (
   if (remaining === 0) await tx.objectStore('conversations').delete(conversationId)
 }
 
-const removeConversation = async (tx: Transaction, conversationId: string): Promise<void> => {
+const removeConversations = async (tx: Transaction, ids: readonly string[]): Promise<void> => {
   const highlights = tx.objectStore('highlights')
-  const ids = await highlights.index('conversationId').getAllKeys(conversationId)
+  const conversations = tx.objectStore('conversations')
+  const byConversation = await Promise.all(
+    ids.map((id) => highlights.index('conversationId').getAllKeys(id)),
+  )
   await Promise.all([
-    ...ids.map((id) => highlights.delete(id)),
-    tx.objectStore('conversations').delete(conversationId),
+    ...byConversation.flat().map((highlightId) => highlights.delete(highlightId)),
+    ...ids.map((id) => conversations.delete(id)),
   ])
 }
 
@@ -75,13 +78,13 @@ export const applyCheck = (
   })
 
 export const purgeConversation = (db: Database, conversationId: string): Promise<void> =>
-  inTransaction(db, 'readwrite', (tx) => removeConversation(tx, conversationId))
+  inTransaction(db, 'readwrite', (tx) => removeConversations(tx, [conversationId]))
 
 export const purgeExpired = (db: Database, now: number): Promise<string[]> =>
   inTransaction(db, 'readwrite', async (tx) => {
-    const trashed = await tx.objectStore('conversations').index('status').getAll('trashed')
-    const expired = trashed.filter((conversation) => isPurgeable(conversation, now))
-    const ids = expired.map(({ id }) => id)
-    await Promise.all(ids.map((id) => removeConversation(tx, id)))
+    const expiredBy = IDBKeyRange.upperBound(now - PURGE_AFTER_MS)
+    const trashed = await tx.objectStore('conversations').index('trashedAt').getAll(expiredBy)
+    const ids = trashed.filter((conversation) => isPurgeable(conversation, now)).map(({ id }) => id)
+    await removeConversations(tx, ids)
     return ids
   })

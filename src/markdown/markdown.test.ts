@@ -37,6 +37,8 @@ describe('toBlockquote', () => {
     { name: 'one line', text: 'one', expected: '> one' },
     { name: 'several lines', text: 'one\ntwo', expected: '> one\n> two' },
     { name: 'Windows line breaks', text: 'one\r\ntwo', expected: '> one\n> two' },
+    { name: 'old Mac line breaks', text: 'one\rtwo', expected: '> one\n> two' },
+    { name: 'mixed line breaks', text: 'a\r\nb\rc\nd', expected: '> a\n> b\n> c\n> d' },
     { name: 'a blank line', text: 'one\n\ntwo', expected: '> one\n> \n> two' },
     { name: 'empty text', text: '', expected: '> ' },
   ])('quotes $name', ({ text, expected }) => {
@@ -68,6 +70,48 @@ describe('highlightToMarkdown', () => {
   it('normalizes Windows line breaks inside the quote', () => {
     const windows = makeHighlight({ quote: makeQuote({ exact: 'one\r\ntwo' }) })
     expect(highlightToMarkdown(windows)).toBe('> one\n> two')
+  })
+})
+
+describe('escaping embedded content', () => {
+  const quoted = (exact: string, overrides = {}) =>
+    highlightToMarkdown(makeHighlight({ quote: makeQuote({ exact }), ...overrides }))
+
+  it.each([
+    { name: 'a heading', exact: '# Title', expected: '> \\# Title' },
+    { name: 'a list marker', exact: '- one\n+ two', expected: '> \\- one\n> \\+ two' },
+    {
+      name: 'a numbered list',
+      exact: '1. first\n2) second',
+      expected: '> 1\\. first\n> 2\\) second',
+    },
+    { name: 'a setext underline', exact: 'Title\n===', expected: '> Title\n> \\===' },
+    { name: 'emphasis', exact: '*bold* and _it_', expected: '> \\*bold\\* and \\_it\\_' },
+    { name: 'a link', exact: '[x](http://evil.test)', expected: '> \\[x\\](http://evil.test)' },
+    { name: 'inline code', exact: 'run `rm -rf`', expected: '> run \\`rm -rf\\`' },
+    { name: 'html', exact: '<img src=x onerror=1>', expected: '> \\<img src=x onerror=1\\>' },
+    { name: 'a character entity', exact: 'a &lt; b', expected: '> a \\&lt; b' },
+    { name: 'a backslash', exact: 'a\\*b', expected: '> a\\\\\\*b' },
+  ])('escapes $name in the quote', ({ exact, expected }) => {
+    expect(quoted(exact)).toBe(expected)
+  })
+
+  it('leaves plain ampersands, dashes and numbers alone', () => {
+    expect(quoted('R&D costs 3-4 times, see 2024.')).toBe('> R&D costs 3-4 times, see 2024.')
+  })
+
+  it('escapes the note line by line', () => {
+    const rendered = quoted('x', { note: '# Heading\r<b>bold</b>' })
+    expect(rendered).toBe('> x\n\n\\# Heading\n\\<b\\>bold\\</b\\>')
+  })
+
+  it('escapes the characters of a tag but keeps its hash', () => {
+    expect(quoted('x', { tags: ['a_b', '[c]'] })).toBe('> x\n\nTags: #a\\_b #\\[c\\]')
+  })
+
+  it('escapes the chat title and keeps it on one line', () => {
+    const group = { title: '# Hi\n*you* #', url: 'https://example.test/c/1', highlights: [] }
+    expect(renderMarkdown([group])).toContain('## \\# Hi \\*you\\* \\#\n')
   })
 })
 

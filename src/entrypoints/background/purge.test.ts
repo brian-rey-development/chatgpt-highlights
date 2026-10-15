@@ -1,7 +1,6 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
-import { DAY_MS, MINUTE_MS } from '@/model'
 import { PURGE_AFTER_MS } from '@/retention'
 import { type Database, openDatabase, readSnapshot } from '@/storage'
 import {
@@ -13,12 +12,11 @@ import {
   makeHighlight,
   type SentMessage,
 } from '@/testing'
-import { PURGE_ALARM, runPurge, startPurge } from './purge'
+import { PURGE_ALARM, PURGE_PERIOD_MINUTES, runPurge, startPurge } from './purge'
 
 const EXPIRED_ID = 'conversation-expired'
 const RECENT_ID = 'conversation-recent'
 const AFTER_EXPIRY = FIXED_TIME + PURGE_AFTER_MS + 1
-const DAILY_PERIOD_MINUTES = DAY_MS / MINUTE_MS
 
 let db: Database
 let sent: SentMessage[]
@@ -66,11 +64,11 @@ describe('startPurge', () => {
   it('schedules a daily purge alarm', async () => {
     await startPurge(Promise.resolve(db))
     const alarm = await fakeBrowser.alarms.get(PURGE_ALARM)
-    expect(alarm?.periodInMinutes).toBe(DAILY_PERIOD_MINUTES)
+    expect(alarm?.periodInMinutes).toBe(PURGE_PERIOD_MINUTES)
   })
 
   it('keeps an existing alarm so a restarting worker never postpones the daily tick', async () => {
-    await fakeBrowser.alarms.create(PURGE_ALARM, { periodInMinutes: DAILY_PERIOD_MINUTES })
+    await fakeBrowser.alarms.create(PURGE_ALARM, { periodInMinutes: PURGE_PERIOD_MINUTES })
     const create = vi.spyOn(fakeBrowser.alarms, 'create')
     await startPurge(Promise.resolve(db))
     expect(create).not.toHaveBeenCalled()
@@ -86,6 +84,19 @@ describe('startPurge', () => {
     })
     expect((await readSnapshot(db)).conversations).toEqual([])
     expect(sent).toEqual(changedIn(EXPIRED_ID))
+  })
+
+  it('reports a purge that fails when the alarm fires', async () => {
+    const report = vi.fn()
+    vi.stubGlobal('reportError', report)
+    await startPurge(Promise.resolve(db))
+    db.close()
+    await fakeBrowser.alarms.onAlarm.trigger({
+      name: PURGE_ALARM,
+      scheduledTime: AFTER_EXPIRY,
+      persistAcrossSessions: false,
+    })
+    expect(report).toHaveBeenCalledTimes(1)
   })
 
   it('ignores other alarms', async () => {

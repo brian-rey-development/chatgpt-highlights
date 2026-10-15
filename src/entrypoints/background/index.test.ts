@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import { fieldOf } from '@/model'
 import {
-  answerOf,
   changedIn,
   FAKE_TAB_ID,
   installFakeTabs,
@@ -17,6 +16,16 @@ import background from './index'
 import { PURGE_ALARM } from './purge'
 
 let sent: SentMessage[]
+
+const answerOf = async (message: unknown): Promise<unknown> => {
+  const answered = Promise.withResolvers<unknown>()
+  await fakeBrowser.runtime.onMessage.trigger(
+    message,
+    { id: fakeBrowser.runtime.id },
+    answered.resolve,
+  )
+  return answered.promise
+}
 
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory())
@@ -53,6 +62,15 @@ describe('background', () => {
     vi.spyOn(fakeBrowser.windows, 'update').mockImplementation(async () => undefined)
     await fakeBrowser.action.onClicked.trigger(makeFakeTab({ id: FAKE_TAB_ID }))
     expect(sent).toEqual([{ tabId: FAKE_TAB_ID, message: LIBRARY_OPEN }])
+  })
+
+  it('reports a startup purge that fails instead of leaving it unhandled', async () => {
+    const report = vi.fn()
+    vi.stubGlobal('reportError', report)
+    const failure = new Error('alarms are gone')
+    vi.spyOn(fakeBrowser.alarms, 'get').mockRejectedValue(failure)
+    background.main()
+    await vi.waitFor(() => expect(report).toHaveBeenCalledWith(failure))
   })
 
   it('schedules the daily purge alarm', async () => {

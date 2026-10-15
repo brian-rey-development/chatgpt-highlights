@@ -30,18 +30,28 @@ const hasChangedStanding = (before: Conversation | null, after: Conversation): b
 
 const touchedBy = ({ conversationId }: Highlight): string[] => [conversationId]
 
+const noop = (): void => undefined
+
+let writeQueue: Promise<void> = Promise.resolve()
+
+const exclusive = <Result>(task: () => Promise<Result>): Promise<Result> => {
+  const run = writeQueue.then(task)
+  writeQueue = run.then(noop, noop)
+  return run
+}
+
 const write = async <Result>(
   database: PendingDatabase,
   operation: Operation<Result>,
   touched: (result: Result) => string[],
 ): Promise<Result> => {
-  const result = await operation(await database)
+  const result = await exclusive(async () => operation(await database))
   // Do not wait: a slow tab must not delay the answer
   void announceChange(touched(result))
   return result
 }
 
-const applyStatusCheck = async (
+const checkStanding = async (
   database: PendingDatabase,
   check: RequestOf<'conversation.check'>,
 ): Promise<Conversation | null> => {
@@ -51,6 +61,11 @@ const applyStatusCheck = async (
   if (after !== null && hasChangedStanding(before, after)) void announceChange([after.id])
   return after
 }
+
+const applyStatusCheck = (
+  database: PendingDatabase,
+  check: RequestOf<'conversation.check'>,
+): Promise<Conversation | null> => exclusive(() => checkStanding(database, check))
 
 const readHandlers = (
   database: PendingDatabase,
@@ -75,7 +90,7 @@ const highlightHandlers = (
     write(
       database,
       (db) => deleteHighlight(db, id),
-      ({ highlight }) => touchedBy(highlight),
+      (deleted) => (deleted ? touchedBy(deleted.highlight) : []),
     ),
 })
 

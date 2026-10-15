@@ -1,4 +1,5 @@
 export * from './colors'
+export * from './copy'
 export * from './durations'
 export * from './fields'
 export * from './icons'

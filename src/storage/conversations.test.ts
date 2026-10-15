@@ -164,6 +164,26 @@ describe('purgeExpired', () => {
     expect(await db.getAllKeys('highlights')).toEqual(['h-active', 'h-recent'])
   })
 
+  it('purges a chat at the retention boundary and keeps one a millisecond short', async () => {
+    await seedDatabase(db, {
+      conversations: [trashedAt('edge', FIXED_TIME), trashedAt('short', FIXED_TIME + 1)],
+      highlights: [
+        makeHighlight({ id: 'h-edge', conversationId: 'edge' }),
+        makeHighlight({ id: 'h-short', conversationId: 'short' }),
+      ],
+    })
+    expect(await purgeExpired(db, now)).toEqual(['edge'])
+  })
+
+  it('keeps an active chat even when it still carries an old trash time', async () => {
+    await seedDatabase(db, {
+      conversations: [makeConversation({ status: 'active', trashedAt: FIXED_TIME })],
+      highlights: [makeHighlight()],
+    })
+    expect(await purgeExpired(db, now)).toEqual([])
+    expect(await db.count('conversations')).toBe(1)
+  })
+
   it('returns an empty list and removes nothing when nothing expired', async () => {
     await seedDatabase(db, {
       conversations: [trashedAt('recent', FIXED_TIME + 1)],

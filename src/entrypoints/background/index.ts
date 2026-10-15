@@ -4,11 +4,12 @@ import { parseRequest } from '@/schemas'
 import { openDatabase } from '@/storage'
 import { createHandlers } from './handlers'
 import { startPurge } from './purge'
+import { reportFailure } from './report-failure'
 import { startToolbarAction } from './toolbar-action'
 
 export default defineBackground(() => {
   const database = openDatabase()
   serve(createRouter(parseRequest, createHandlers(database)))
   startToolbarAction()
-  void startPurge(database)
+  startPurge(database).catch(reportFailure)
 })

@@ -9,10 +9,10 @@ z.config({ jitless: true })
 
 export const MAX_DATE_MS = 8_640_000_000_000_000
 
-const idSchema = z.string().min(1)
-const nonNegativeInt = z.number().int().nonnegative()
-export const timestampSchema = nonNegativeInt.max(MAX_DATE_MS)
-const offsetSchema = nonNegativeInt
+const idSchema = z.string().min(1).max(LIMITS.idChars)
+const titleSchema = z.string().max(LIMITS.titleChars)
+export const timestampSchema = z.number().int().nonnegative().max(MAX_DATE_MS)
+const offsetSchema = z.number().int().nonnegative().max(LIMITS.messageChars)
 const colorSchema = z.enum(HIGHLIGHT_COLORS)
 const noteSchema = z.string().max(LIMITS.noteChars)
 const isNormalizedTag = (tag: string): boolean => normalizeTag(tag) === tag
@@ -30,7 +30,9 @@ const quoteSchema = z
     start: offsetSchema,
     end: offsetSchema,
   })
-  .refine((quote) => quote.end >= quote.start, { message: 'quote ends before it starts' })
+  .refine((quote) => quote.end - quote.start === quote.exact.length, {
+    message: 'quote offsets do not span the exact text',
+  })
 
 export const highlightSchema: z.ZodType<Highlight> = z.strictObject({
   id: idSchema,
@@ -50,7 +52,7 @@ const hasTrashTimeExactlyWhenTrashed = ({ status, trashedAt }: Conversation): bo
 export const conversationSchema: z.ZodType<Conversation> = z
   .strictObject({
     id: idSchema,
-    title: z.string(),
+    title: titleSchema,
     status: z.enum(['active', 'trashed']),
     trashedAt: timestampSchema.nullable(),
     checkedAt: timestampSchema,
@@ -62,7 +64,7 @@ export const conversationSchema: z.ZodType<Conversation> = z
 
 const newHighlightSchema = z.strictObject({
   conversationId: idSchema,
-  conversationTitle: z.string(),
+  conversationTitle: titleSchema,
   messageId: idSchema,
   quote: quoteSchema,
   color: colorSchema,
@@ -80,7 +82,7 @@ const patchSchema = z
   })
 
 const outcomeSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('exists'), title: z.string() }),
+  z.strictObject({ kind: z.literal('exists'), title: titleSchema }),
   z.strictObject({ kind: z.literal('missing') }),
   z.strictObject({ kind: z.literal('unknown') }),
 ])

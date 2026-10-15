@@ -97,6 +97,8 @@ export const removeHighlight = async (runtime: Runtime, id: string): Promise<voi
     showFailure(store, result.error)
     return
   }
-  const undo = { label: UNDO_LABEL, run: () => void undoRemoval(runtime, result.data) }
+  const deleted = result.data
+  if (deleted === null) return
+  const undo = { label: UNDO_LABEL, run: () => void undoRemoval(runtime, deleted) }
   showToast(store, { message: REMOVED_MESSAGE, action: undo })
 }

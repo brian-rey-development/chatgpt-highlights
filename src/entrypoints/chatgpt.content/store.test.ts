@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { userMessageOf } from '@/errors'
 import { WRITE_FAILURE } from '@/testing'
-import { createStore, type Store, showFailure, showMessage, showToast, TOAST_MS } from './store'
+import {
+  createStore,
+  type Store,
+  showFailure,
+  showMessage,
+  showToast,
+  TOAST_MS,
+  UNDO_TOAST_MS,
+} from './store'
 
 const TOAST = { message: 'Highlight removed', action: null }
+const UNDOABLE_TOAST = { message: 'Highlight removed', action: { label: 'Undo', run: vi.fn() } }
 const ONE_SECOND_MS = 1000
 
 const shownMessage = (store: Store): string | undefined => store.toast.value?.message
@@ -58,6 +68,20 @@ describe('showToast', () => {
     expect(store.toast.value).toBeNull()
   })
 
+  it('keeps a toast with an Undo action for ten seconds', () => {
+    const store = createStore()
+    showToast(store, UNDOABLE_TOAST)
+    vi.advanceTimersByTime(UNDO_TOAST_MS - 1)
+    expect(store.toast.value).not.toBeNull()
+    vi.advanceTimersByTime(1)
+    expect(store.toast.value).toBeNull()
+  })
+
+  it('gives the Undo window more time than a plain toast', () => {
+    expect(UNDO_TOAST_MS).toBe(10 * ONE_SECOND_MS)
+    expect(UNDO_TOAST_MS).toBeGreaterThan(TOAST_MS)
+  })
+
   it('lets a newer toast outlive the timer of the one it replaced', () => {
     const store = createStore()
     showToast(store, TOAST)
@@ -88,9 +112,10 @@ describe('showMessage', () => {
 })
 
 describe('showFailure', () => {
-  it("shows the error's message", () => {
+  it('shows the safe message of the error code, never its raw text', () => {
     const store = createStore()
     showFailure(store, WRITE_FAILURE)
-    expect(store.toast.value).toMatchObject({ message: WRITE_FAILURE.message, action: null })
+    expect(store.toast.value).toMatchObject({ message: userMessageOf(WRITE_FAILURE), action: null })
+    expect(shownMessage(store)).not.toContain(WRITE_FAILURE.message)
   })
 })

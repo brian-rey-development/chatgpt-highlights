@@ -30,7 +30,7 @@ export interface Responses {
   'conversation.purge': null
   'highlight.create': Highlight
   'highlight.update': Highlight
-  'highlight.delete': DeletedHighlight
+  'highlight.delete': DeletedHighlight | null
   'highlight.restore': Highlight
   'library.snapshot': Snapshot
   'backup.export': string

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { err, ok } from '@/errors'
+import { err, ok, userMessageOf } from '@/errors'
 import { fieldOf, type Highlight, type HighlightPatch, REMOVED_MESSAGE } from '@/model'
 import { createPainter, type Painter } from '@/painter'
 import {
@@ -71,7 +71,7 @@ describe('editHighlight', () => {
     await editHighlight(runtime(), saved.id, { color: 'pink', note: 'Draft', tags: ['tides'] })
     expect(stored()).toEqual(saved)
     expect(painter.painted.get(saved.id)).toMatchObject({ color: saved.color, hasNote: false })
-    expect(store.toast.value?.message).toBe(WRITE_FAILURE.message)
+    expect(store.toast.value?.message).toBe(userMessageOf(WRITE_FAILURE))
   })
 
   it('rolls back only the fields of the failed patch', async () => {
@@ -122,7 +122,7 @@ describe('editHighlight', () => {
     background.answerWith(() => err(WRITE_FAILURE))
     await editHighlight(runtime(), 'missing', { color: 'blue' })
     expect(store.highlights.value.size).toBe(1)
-    expect(store.toast.value?.message).toBe(WRITE_FAILURE.message)
+    expect(store.toast.value?.message).toBe(userMessageOf(WRITE_FAILURE))
   })
 
   it('does not bring back a highlight that was removed while the write was in flight', async () => {
@@ -200,6 +200,14 @@ describe('removeHighlight', () => {
     expect(store.toast.value?.action?.label).toBe(UNDO_LABEL)
   })
 
+  it('shows no toast and keeps the highlight gone when nothing existed to delete', async () => {
+    background.answerWith(() => ok(null))
+    await removeHighlight(runtime(), saved.id)
+    expect(store.toast.value).toBeNull()
+    expect(painter.painted.has(saved.id)).toBe(false)
+    expect(stored()).toBeUndefined()
+  })
+
   it('restores and repaints the highlight when Undo is chosen', async () => {
     const deleted = { highlight: saved, conversation: makeConversation() }
     background.answerWith((message) =>
@@ -234,7 +242,7 @@ describe('removeHighlight', () => {
     await removeHighlight(runtime(), saved.id)
     store.toast.value?.action?.run()
     await settle()
-    expect(store.toast.value?.message).toBe(WRITE_FAILURE.message)
+    expect(store.toast.value?.message).toBe(userMessageOf(WRITE_FAILURE))
     expect(stored()).toBeUndefined()
   })
 
@@ -255,7 +263,7 @@ describe('removeHighlight', () => {
     await removeHighlight(runtime(), saved.id)
     expect(stored()).toEqual(saved)
     expect(painter.painted.get(saved.id)?.range.toString()).toBe(PULL_QUOTE)
-    expect(store.toast.value).toMatchObject({ message: WRITE_FAILURE.message, action: null })
+    expect(store.toast.value).toMatchObject({ message: userMessageOf(WRITE_FAILURE), action: null })
   })
 
   it('ignores a highlight the conversation does not have', async () => {

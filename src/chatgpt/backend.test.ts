@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { FIXTURE_CONVERSATION_ID, sessionJson } from '@/testing'
-import { checkConversation, fetchSession, STATUS_MISSING, STATUS_OK } from './backend'
+import {
+  checkConversation,
+  FETCH_TIMEOUT_MS,
+  fetchSession,
+  STATUS_MISSING,
+  STATUS_OK,
+} from './backend'
 
 const SESSION = { token: 'test-access-token' }
 
@@ -20,13 +26,36 @@ describe('the status codes it shares with test fakes', () => {
   })
 })
 
+const installControllableTimeout = (): AbortController => {
+  const controller = new AbortController()
+  vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal)
+  return controller
+}
+
+const fetcherHangingUntilAborted = () =>
+  vi.fn<typeof fetch>(
+    (_url, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('', 'TimeoutError')))
+      }),
+  )
+
 describe('fetchSession', () => {
   it('maps the recon session payload to a token', async () => {
     const fetcher = fetcherReturning(reply(200, sessionJson))
     await expect(fetchSession(fetcher)).resolves.toEqual(SESSION)
     expect(fetcher).toHaveBeenCalledWith('https://chatgpt.com/api/auth/session', {
       credentials: 'include',
+      signal: expect.any(AbortSignal),
     })
+  })
+
+  it('gives the session request a deadline and gives up on one that never settles', async () => {
+    const controller = installControllableTimeout()
+    const pending = fetchSession(fetcherHangingUntilAborted())
+    controller.abort()
+    await expect(pending).resolves.toBeNull()
+    expect(AbortSignal.timeout).toHaveBeenCalledWith(FETCH_TIMEOUT_MS)
   })
 
   it.each([
@@ -52,8 +81,26 @@ describe('checkConversation', () => {
         method: 'GET',
         headers: { Authorization: 'Bearer test-access-token' },
         credentials: 'include',
+        signal: expect.any(AbortSignal),
       },
     )
+  })
+
+  it('gives the status request a deadline', async () => {
+    installControllableTimeout()
+    await checkConversation(SESSION, FIXTURE_CONVERSATION_ID, fetcherReturning(reply(200)))
+    expect(AbortSignal.timeout).toHaveBeenCalledWith(FETCH_TIMEOUT_MS)
+  })
+
+  it('keeps a request that timed out unknown, never missing', async () => {
+    const controller = installControllableTimeout()
+    const pending = checkConversation(
+      SESSION,
+      FIXTURE_CONVERSATION_ID,
+      fetcherHangingUntilAborted(),
+    )
+    controller.abort()
+    await expect(pending).resolves.toEqual({ kind: 'unknown' })
   })
 
   it('reports an existing chat with its title', async () => {

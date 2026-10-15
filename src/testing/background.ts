@@ -48,7 +48,7 @@ export const deliverMessage = async (message: unknown): Promise<Delivery> => {
   const answered = Promise.withResolvers<void>()
   const results: unknown[] = await fakeBrowser.runtime.onMessage.trigger(
     message,
-    {},
+    { id: fakeBrowser.runtime.id },
     (response: unknown) => {
       responses.push(response)
       answered.resolve()

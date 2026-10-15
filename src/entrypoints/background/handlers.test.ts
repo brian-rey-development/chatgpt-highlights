@@ -130,10 +130,32 @@ describe('highlight writes', () => {
     expect(await announcements()).toEqual([])
   })
 
+  it('keeps accepting writes queued behind one that failed', async () => {
+    const failing = handlers['highlight.update']({
+      type: 'highlight.update',
+      id: 'missing',
+      patch: { note: 'x' },
+    })
+    const following = handlers['highlight.create']({
+      type: 'highlight.create',
+      input: makeNewHighlight(),
+    })
+    await expect(failing).rejects.toMatchObject({ code: 'not_found' })
+    await expect(following).resolves.toMatchObject({
+      conversationId: makeNewHighlight().conversationId,
+    })
+  })
+
+  it('highlight.delete of a missing highlight answers null and broadcasts nothing', async () => {
+    const deleted = await handlers['highlight.delete']({ type: 'highlight.delete', id: 'missing' })
+    expect(deleted).toBeNull()
+    expect(await announcements()).toEqual([])
+  })
+
   it('highlight.delete removes the highlight and names its conversation', async () => {
     const stored = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
     const deleted = await handlers['highlight.delete']({ type: 'highlight.delete', id: stored.id })
-    expect(deleted.highlight).toEqual(stored)
+    expect(deleted?.highlight).toEqual(stored)
     expect((await readSnapshot(db)).highlights).toEqual([])
     expect(await announcements()).toEqual(changedIn(stored.conversationId))
   })
@@ -141,6 +163,7 @@ describe('highlight writes', () => {
   it('highlight.restore brings a deleted highlight back and names its conversation', async () => {
     const stored = await createHighlight(db, makeNewHighlight(), FIXED_TIME)
     const deleted = await handlers['highlight.delete']({ type: 'highlight.delete', id: stored.id })
+    if (deleted === null) throw new Error('The highlight to restore was never stored')
     await clearAnnouncements()
     const restored = await handlers['highlight.restore']({ type: 'highlight.restore', deleted })
     expect(restored).toEqual(stored)
@@ -249,6 +272,13 @@ describe('conversation.check', () => {
     const restored = await check({ kind: 'exists', title: 'Renamed' })
     expect(restored).toMatchObject({ status: 'active', trashedAt: null, title: 'Renamed' })
     expect(await announcements()).toEqual(changedIn(makeConversation().id))
+  })
+
+  it('names the restore of a conversation another check trashed at the same moment', async () => {
+    const original = makeConversation()
+    await Promise.all([check(MISSING), check({ kind: 'exists', title: original.title })])
+    expect(await announcements()).toEqual([...changedIn(original.id), ...changedIn(original.id)])
+    expect((await readSnapshot(db)).conversations).toMatchObject([{ status: 'active' }])
   })
 
   it('stores a check that only refreshed its timestamps but broadcasts nothing', async () => {

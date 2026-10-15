@@ -6,12 +6,14 @@ import type { Stop } from './listen'
 import { type Runtime, showMessage } from './store'
 
 export const MAX_IN_FLIGHT = 4
+export const PASS_TIMEOUT_MS = 120_000
 
 interface StatusCheckState {
   runtime: Runtime
-  stopped: boolean
+  isStopped: boolean
   wasOpen: boolean
-  running: boolean
+  isRunning: boolean
+  generation: number
 }
 
 const check = async (session: Session, conversation: Conversation): Promise<boolean> => {
@@ -33,7 +35,7 @@ const checkAll = async (
   const queue = [...due]
   const moved: boolean[] = []
   const work = async (): Promise<void> => {
-    for (let next = queue.shift(); next && !state.stopped; next = queue.shift()) {
+    for (let next = queue.shift(); next && !state.isStopped; next = queue.shift()) {
       moved.push(await check(session, next))
     }
   }
@@ -50,31 +52,44 @@ const dueConversations = async (): Promise<Conversation[]> => {
 
 const runPass = async (state: StatusCheckState): Promise<void> => {
   const due = await dueConversations()
-  if (due.length === 0 || state.stopped) return
+  if (due.length === 0 || state.isStopped) return
   const session = await fetchSession()
-  if (!session || state.stopped) return
+  if (!session || state.isStopped) return
   const moved = await checkAll(state, session, due)
-  if (moved.includes(true) && !state.stopped) {
+  if (moved.includes(true) && !state.isStopped) {
     showMessage(state.runtime.store, MOVED_TO_TRASH_MESSAGE)
   }
 }
 
 const startPass = (state: StatusCheckState): void => {
-  state.running = true
+  state.generation += 1
+  const generation = state.generation
+  const release = (): void => {
+    if (state.generation === generation) state.isRunning = false
+  }
+  state.isRunning = true
+  const watchdog = setTimeout(release, PASS_TIMEOUT_MS)
   void runPass(state).finally(() => {
-    state.running = false
+    clearTimeout(watchdog)
+    release()
   })
 }
 
 export const startStatusChecks = (runtime: Runtime): Stop => {
-  const state: StatusCheckState = { runtime, stopped: false, wasOpen: false, running: false }
+  const state: StatusCheckState = {
+    runtime,
+    isStopped: false,
+    wasOpen: false,
+    isRunning: false,
+    generation: 0,
+  }
   const stopWatching = runtime.store.library.subscribe((library) => {
     const isOpen = library !== null
-    if (isOpen && !state.wasOpen && !state.running) startPass(state)
+    if (isOpen && !state.wasOpen && !state.isRunning) startPass(state)
     state.wasOpen = isOpen
   })
   return () => {
-    state.stopped = true
+    state.isStopped = true
     stopWatching()
   }
 }

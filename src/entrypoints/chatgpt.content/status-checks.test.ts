@@ -18,7 +18,7 @@ import {
   WRITE_FAILURE,
 } from '@/testing'
 import type { Stop } from './listen'
-import { MAX_IN_FLIGHT, startStatusChecks } from './status-checks'
+import { MAX_IN_FLIGHT, PASS_TIMEOUT_MS, startStatusChecks } from './status-checks'
 import { createStore, type Store } from './store'
 
 const NOW = FIXED_TIME + 2 * CHECK_INTERVAL_MS
@@ -143,6 +143,53 @@ describe('a pass that is still running', () => {
     closeLibrary()
     await openLibrary()
     expect(api.checked()).toEqual(['a', 'a'])
+  })
+})
+
+describe('a pass that never settles', () => {
+  it('keeps blocking new passes until the watchdog deadline', async () => {
+    serve([stale('a')])
+    api.holdSession()
+    begin()
+    await openLibrary()
+    await vi.advanceTimersByTimeAsync(PASS_TIMEOUT_MS - 1)
+    closeLibrary()
+    await openLibrary()
+    expect(api.sessionRequests()).toBe(1)
+  })
+
+  it('lets the next opening start a new pass once the watchdog fired', async () => {
+    serve([stale('a')])
+    api.holdSession()
+    begin()
+    await openLibrary()
+    await vi.advanceTimersByTimeAsync(PASS_TIMEOUT_MS)
+    closeLibrary()
+    await openLibrary()
+    expect(api.sessionRequests()).toBe(2)
+  })
+
+  it('does not free the slot of the newer pass when the abandoned one finally ends', async () => {
+    serve([stale('a')])
+    const abandoned = api.holdSession()
+    begin()
+    await openLibrary()
+    await vi.advanceTimersByTimeAsync(PASS_TIMEOUT_MS)
+    closeLibrary()
+    api.holdSession()
+    await openLibrary()
+    abandoned.resolve()
+    await settle()
+    closeLibrary()
+    await openLibrary()
+    expect(api.sessionRequests()).toBe(2)
+  })
+
+  it('stops the watchdog once its pass finished', async () => {
+    serve([stale('a')])
+    begin()
+    await openLibrary()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
 

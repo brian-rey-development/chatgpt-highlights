@@ -71,10 +71,11 @@ export const updateHighlight = (
     return updated
   })
 
-export const deleteHighlight = (db: Database, id: string): Promise<DeletedHighlight> =>
+export const deleteHighlight = (db: Database, id: string): Promise<DeletedHighlight | null> =>
   inTransaction(db, 'readwrite', async (tx) => {
     const highlights = tx.objectStore('highlights')
-    const highlight = requireRow(await highlights.get(id), `Highlight ${id}`)
+    const highlight = await highlights.get(id)
+    if (highlight === undefined) return null
     const { conversationId } = highlight
     const conversation = requireRow(
       await tx.objectStore('conversations').get(conversationId),

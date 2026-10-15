@@ -1,8 +1,14 @@
-import { type DBSchema, type IDBPDatabase, type IDBPTransaction, openDB } from 'idb'
+import {
+  type DBSchema,
+  type IDBPDatabase,
+  type IDBPTransaction,
+  openDB,
+  type StoreNames,
+} from 'idb'
 import { APP_SLUG, type Conversation, type ConversationStatus, type Highlight } from '@/model'
 
 export const DATABASE_NAME = APP_SLUG
-export const DATABASE_VERSION = 1
+export const DATABASE_VERSION = 2
 const STORE_NAMES = ['highlights', 'conversations'] as const
 
 interface HighlightsSchema extends DBSchema {
@@ -14,7 +20,7 @@ interface HighlightsSchema extends DBSchema {
   conversations: {
     key: string
     value: Conversation
-    indexes: { status: ConversationStatus }
+    indexes: { status: ConversationStatus; trashedAt: number }
   }
 }
 
@@ -28,14 +34,28 @@ export type Transaction<Mode extends AccessMode = 'readwrite'> = IDBPTransaction
   Mode
 >
 
+type Migration = (
+  db: Database,
+  tx: IDBPTransaction<HighlightsSchema, StoreNames<HighlightsSchema>[], 'versionchange'>,
+) => void
+
+const MIGRATIONS: readonly Migration[] = [
+  (db) => {
+    db.createObjectStore('highlights', { keyPath: 'id' }).createIndex(
+      'conversationId',
+      'conversationId',
+    )
+    db.createObjectStore('conversations', { keyPath: 'id' }).createIndex('status', 'status')
+  },
+  (_db, tx) => {
+    tx.objectStore('conversations').createIndex('trashedAt', 'trashedAt')
+  },
+]
+
 export const openDatabase = (name: string = DATABASE_NAME): Promise<Database> =>
   openDB<HighlightsSchema>(name, DATABASE_VERSION, {
-    upgrade: (db) => {
-      db.createObjectStore('highlights', { keyPath: 'id' }).createIndex(
-        'conversationId',
-        'conversationId',
-      )
-      db.createObjectStore('conversations', { keyPath: 'id' }).createIndex('status', 'status')
+    upgrade: (db, oldVersion, ...[, tx]) => {
+      for (const migrate of MIGRATIONS.slice(oldVersion)) migrate(db, tx)
     },
   })
 

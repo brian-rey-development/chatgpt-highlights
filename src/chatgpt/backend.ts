@@ -9,6 +9,7 @@ export const SESSION_URL = `${CHATGPT_ORIGIN}/api/auth/session`
 export const CONVERSATION_URL = `${CHATGPT_ORIGIN}/backend-api/conversation`
 export const STATUS_OK = 200
 export const STATUS_MISSING = 404
+export const FETCH_TIMEOUT_MS = 10_000
 const UNKNOWN: CheckOutcome = { kind: 'unknown' }
 
 type Fetcher = typeof fetch
@@ -38,7 +39,10 @@ const readTitle = (body: unknown): string => {
 export const fetchSession = async (fetcher?: Fetcher): Promise<Session | null> => {
   try {
     const send = fetcher ?? defaultFetcher()
-    const response = await send(SESSION_URL, { credentials: 'include' })
+    const response = await send(SESSION_URL, {
+      credentials: 'include',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
     if (response.status !== STATUS_OK) return null
     const token = readToken(await response.json())
     return token ? { token } : null
@@ -65,6 +69,7 @@ export const checkConversation = async (
       method: 'GET',
       headers: { Authorization: `Bearer ${session.token}` },
       credentials: 'include',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
     return await outcomeOf(response)
   } catch {

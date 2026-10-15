@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
+import { openDB } from 'idb'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { makeConversation, makeHighlight } from '@/testing'
+import { FIXED_TIME, makeConversation, makeHighlight } from '@/testing'
 import {
   DATABASE_NAME,
   DATABASE_VERSION,
@@ -20,21 +21,44 @@ describe('openDatabase', () => {
     const named = await openDatabase()
     expect(named.name).toBe(DATABASE_NAME)
     expect(DATABASE_NAME).toBe('chatgpt-highlights')
-    expect(DATABASE_VERSION).toBe(1)
+    expect(DATABASE_VERSION).toBe(2)
   })
 
-  it('creates version 1 with a highlights store and a conversations store', () => {
+  it('creates the current version with a highlights store and a conversations store', () => {
     expect(db.version).toBe(DATABASE_VERSION)
     expect([...db.objectStoreNames].toSorted()).toEqual(['conversations', 'highlights'])
   })
 
-  it('indexes highlights by conversationId and conversations by status', async () => {
+  it('indexes highlights by conversationId and conversations by status and trashedAt', async () => {
     const tx = db.transaction(['highlights', 'conversations'])
     expect([...tx.objectStore('highlights').indexNames]).toEqual(['conversationId'])
-    expect([...tx.objectStore('conversations').indexNames]).toEqual(['status'])
+    expect([...tx.objectStore('conversations').indexNames]).toEqual(['status', 'trashedAt'])
     expect(tx.objectStore('highlights').keyPath).toBe('id')
     expect(tx.objectStore('conversations').keyPath).toBe('id')
     await tx.done
+  })
+
+  it('upgrades a version 1 database in place and indexes its existing trashed chats', async () => {
+    const name = crypto.randomUUID()
+    const old = await openDB(name, 1, {
+      upgrade: (upgrading) => {
+        upgrading
+          .createObjectStore('highlights', { keyPath: 'id' })
+          .createIndex('conversationId', 'conversationId')
+        upgrading
+          .createObjectStore('conversations', { keyPath: 'id' })
+          .createIndex('status', 'status')
+      },
+    })
+    await old.put('conversations', makeConversation({ status: 'trashed', trashedAt: FIXED_TIME }))
+    await old.put('highlights', makeHighlight())
+    old.close()
+    const upgraded = await openDatabase(name)
+    expect(upgraded.version).toBe(DATABASE_VERSION)
+    expect(await upgraded.getAllKeysFromIndex('conversations', 'trashedAt')).toEqual([
+      'conversation-1',
+    ])
+    expect(await upgraded.count('highlights')).toBe(1)
   })
 
   it('keeps stored rows when the database is opened again', async () => {

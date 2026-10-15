@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { AppFailure } from '@/errors'
-import type { Snapshot } from '@/model'
+import { LIMITS, type Snapshot } from '@/model'
 import { conversationSchema, describeIssues, highlightSchema, timestampSchema } from '@/schemas'
 
 export const BACKUP_FORMAT = 'chatgpt-highlights'
@@ -14,6 +14,11 @@ const backupSchema = z.strictObject({
   exportedAt: timestampSchema,
   conversations: z.array(conversationSchema),
   highlights: z.array(highlightSchema),
+})
+
+const sizeSchema = z.object({
+  conversations: z.array(z.unknown()).max(LIMITS.backupConversations),
+  highlights: z.array(z.unknown()).max(LIMITS.backupHighlights),
 })
 
 const invalid = (reason: string): AppFailure =>
@@ -61,8 +66,18 @@ const assertConsistent = ({ conversations, highlights }: Snapshot): void => {
   if (empty) throw invalid(`chat ${empty.id} has no highlights`)
 }
 
+const parseWithinLimits = (text: string): unknown => {
+  if (text.length > LIMITS.backupChars) throw invalid('the file is too large')
+  const json = parseJson(text)
+  const size = sizeSchema.safeParse(json)
+  if (!size.success && size.error.issues.some(({ code }) => code === 'too_big')) {
+    throw invalid(describeIssues(size.error))
+  }
+  return json
+}
+
 export const parseBackup = (text: string): Snapshot => {
-  const parsed = backupSchema.safeParse(parseJson(text))
+  const parsed = backupSchema.safeParse(parseWithinLimits(text))
   if (!parsed.success) throw invalid(describeIssues(parsed.error))
   const { conversations, highlights } = parsed.data
   assertConsistent({ conversations, highlights })

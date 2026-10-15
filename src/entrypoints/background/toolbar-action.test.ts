@@ -106,4 +106,15 @@ describe('startToolbarAction', () => {
     await fakeBrowser.action.onClicked.trigger(makeFakeTab({ id: FAKE_TAB_ID }))
     expect(sent).toEqual([{ tabId: FAKE_TAB_ID, message: LIBRARY_OPEN }])
   })
+
+  it('reports a click that cannot open the library instead of leaving it unhandled', async () => {
+    const report = vi.fn()
+    vi.stubGlobal('reportError', report)
+    const failure = new Error('tabs are gone')
+    installFakeTabs([])
+    vi.spyOn(fakeBrowser.tabs, 'create').mockRejectedValue(failure)
+    startToolbarAction()
+    await fakeBrowser.action.onClicked.trigger(makeFakeTab({ id: FAKE_TAB_ID }))
+    expect(report).toHaveBeenCalledWith(failure)
+  })
 })

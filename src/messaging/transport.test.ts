@@ -1,4 +1,5 @@
-import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import type { Browser } from 'wxt/browser'
 import { fakeBrowser } from 'wxt/testing/fake-browser'
 import { err, ok, type Result } from '@/errors'
 import type { Conversation } from '@/model'
@@ -11,11 +12,69 @@ import {
   installFakeTabs,
   LIBRARY_OPEN,
   makeConversation,
+  makeHighlight,
+  makeNewHighlight,
 } from '@/testing'
 import type { Route } from './router'
-import { broadcast, onEvent, onTabCommand, request, sendTabCommand, serve } from './transport'
+import {
+  broadcast,
+  onEvent,
+  onTabCommand,
+  REQUEST_TIMEOUT_MS,
+  request,
+  sendTabCommand,
+  serve,
+} from './transport'
+import type { Request } from './types'
 
 const LIST_REQUEST = { type: 'conversations.list' } as const
+
+const READ_REQUESTS: readonly Request[] = [
+  { type: 'conversation.load', conversationId: FIXTURE_CONVERSATION_ID },
+  LIST_REQUEST,
+  { type: 'library.snapshot' },
+  { type: 'backup.export' },
+]
+
+const WRITE_REQUESTS: readonly Request[] = [
+  { type: 'highlight.create', input: makeNewHighlight() },
+  { type: 'highlight.update', id: 'highlight-1', patch: { note: 'later' } },
+  { type: 'highlight.delete', id: 'highlight-1' },
+  {
+    type: 'highlight.restore',
+    deleted: { highlight: makeHighlight(), conversation: makeConversation() },
+  },
+  {
+    type: 'conversation.check',
+    conversationId: FIXTURE_CONVERSATION_ID,
+    outcome: { kind: 'missing' },
+  },
+  { type: 'conversation.purge', conversationId: FIXTURE_CONVERSATION_ID },
+  { type: 'backup.import', text: '{}' },
+]
+
+const deliverFrom = async (sender: Browser.runtime.MessageSender, message: unknown) => {
+  const responses: unknown[] = []
+  const answered = Promise.withResolvers<void>()
+  const results: unknown[] = await fakeBrowser.runtime.onMessage.trigger(
+    message,
+    sender,
+    (response: unknown) => {
+      responses.push(response)
+      answered.resolve()
+    },
+  )
+  if (results.includes(true)) await answered.promise
+  return { results, responses }
+}
+
+const deliverOwn = (message: unknown) => deliverFrom({ id: fakeBrowser.runtime.id }, message)
+
+const routeSendsToServe = (): void => {
+  vi.spyOn(fakeBrowser.runtime, 'sendMessage').mockImplementation(
+    async (message: unknown) => (await deliverOwn(message)).responses[0],
+  )
+}
 
 const echoRoute =
   (data: unknown): Route =>
@@ -37,6 +96,7 @@ describe('request', () => {
   it('returns what the served router answers', async () => {
     const conversations = [makeConversation()]
     serve(echoRoute(conversations))
+    routeSendsToServe()
 
     const result = await request(LIST_REQUEST)
 
@@ -45,6 +105,7 @@ describe('request', () => {
 
   it('types the data by request type', async () => {
     serve(echoRoute([]))
+    routeSendsToServe()
 
     const result = await request(LIST_REQUEST)
 
@@ -95,6 +156,41 @@ describe('request', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'unreachable' } })
   })
 
+  it.each(READ_REQUESTS.map((message) => ({ name: message.type, message })))(
+    'retries the read $name once after a failed send',
+    async ({ message }) => {
+      const background = scriptSend(new Error('worker is starting'), ok(null))
+
+      await request(message)
+
+      expect(background.sent()).toEqual([message, message])
+    },
+  )
+
+  it.each(WRITE_REQUESTS.map((message) => ({ name: message.type, message })))(
+    'sends the write $name exactly once and reports the failure',
+    async ({ message }) => {
+      const background = scriptSend(new Error('worker went away'), ok(null))
+
+      const result = await request(message)
+
+      expect(background.sent()).toEqual([message])
+      expect(result).toEqual(err({ code: 'unreachable', message: 'worker went away' }))
+    },
+  )
+
+  it.each(WRITE_REQUESTS.map((message) => ({ name: message.type, message })))(
+    'does not resend the write $name when nobody answered',
+    async ({ message }) => {
+      const background = scriptSend(undefined, ok(null))
+
+      const result = await request(message)
+
+      expect(background.sent()).toEqual([message])
+      expect(result).toMatchObject({ ok: false, error: { code: 'unreachable' } })
+    },
+  )
+
   it('does not retry an error the router answered', async () => {
     const failure = err({ code: 'not_found' as const, message: 'gone' })
     const background = scriptSend(failure)
@@ -104,11 +200,52 @@ describe('request', () => {
   })
 })
 
+describe('request deadline', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  it('gives up on a read nobody answers after the deadline, once per attempt', async () => {
+    const background = installFakeBackground()
+    background.hold()
+
+    const pending = request(LIST_REQUEST)
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS * 2)
+
+    expect(await pending).toMatchObject({ ok: false, error: { code: 'unreachable' } })
+    expect(background.sent()).toEqual([LIST_REQUEST, LIST_REQUEST])
+  })
+
+  it('gives up on a write nobody answers without sending it again', async () => {
+    const background = installFakeBackground()
+    background.hold()
+    const write = WRITE_REQUESTS[0] ?? LIST_REQUEST
+
+    const pending = request(write)
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+
+    expect(await pending).toMatchObject({ ok: false, error: { code: 'unreachable' } })
+    expect(background.sent()).toEqual([write])
+  })
+
+  it('keeps waiting until the deadline for a slow answer', async () => {
+    const background = installFakeBackground()
+    const gate = background.hold()
+
+    const pending = request(LIST_REQUEST)
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1)
+    gate.resolve(ok([]))
+
+    expect(await pending).toEqual(ok([]))
+    expect(background.sent()).toEqual([LIST_REQUEST])
+  })
+})
+
 describe('serve', () => {
   it('answers through the response callback and keeps the channel open', async () => {
     serve(echoRoute('exported'))
 
-    const { results, responses } = await deliverMessage({ type: 'backup.export' })
+    const { results, responses } = await deliverOwn({ type: 'backup.export' })
 
     expect(results).toEqual([true])
     expect(responses).toEqual([ok('exported')])
@@ -121,7 +258,7 @@ describe('serve', () => {
     const route = vi.fn(echoRoute(null))
     serve(route)
 
-    const { results, responses } = await deliverMessage(message)
+    const { results, responses } = await deliverOwn(message)
 
     expect(results).not.toContain(true)
     expect(responses).toEqual([])
@@ -131,9 +268,49 @@ describe('serve', () => {
   it('routes junk too, so the router can answer invalid_message', async () => {
     serve(echoRoute('seen'))
 
-    const { responses } = await deliverMessage('not even an object')
+    const { responses } = await deliverOwn('not even an object')
 
     expect(responses).toEqual([ok('seen')])
+  })
+
+  it.each([
+    { name: 'another extension', sender: { id: 'some-other-extension' } },
+    { name: 'a sender without an id', sender: {} },
+  ])('does not route a message from $name', async ({ sender }) => {
+    const route = vi.fn(echoRoute('leaked'))
+    serve(route)
+
+    const { results, responses } = await deliverFrom(sender, { type: 'backup.export' })
+
+    expect(results).not.toContain(true)
+    expect(responses).toEqual([])
+    expect(route).not.toHaveBeenCalled()
+  })
+
+  it('answers with an unexpected error when the route itself throws', async () => {
+    serve(async () => {
+      throw new Error('route exploded')
+    })
+
+    const { responses } = await deliverOwn({ type: 'backup.export' })
+
+    expect(responses).toEqual([err({ code: 'unexpected', message: 'route exploded' })])
+  })
+
+  it('survives a response channel that already closed', async () => {
+    serve(echoRoute('exported'))
+    const sendResponse = vi.fn(() => {
+      throw new Error('Attempting to use a disconnected port object')
+    })
+
+    const results: unknown[] = await fakeBrowser.runtime.onMessage.trigger(
+      { type: 'backup.export' },
+      { id: fakeBrowser.runtime.id },
+      sendResponse,
+    )
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledTimes(1))
+
+    expect(results).toContain(true)
   })
 
   it('stops answering after the returned unsubscribe runs', async () => {
@@ -156,6 +333,38 @@ describe('broadcast', () => {
       { tabId: 3, message: FIXTURE_DATA_CHANGED },
       { tabId: 4, message: FIXTURE_DATA_CHANGED },
     ])
+  })
+
+  it('asks for the tabs once when writes announce at the same time', async () => {
+    const sent = installFakeTabs([{ id: 3 }])
+
+    await Promise.all([
+      broadcast(FIXTURE_DATA_CHANGED, CHATGPT_MATCH),
+      broadcast(FIXTURE_DATA_CHANGED, CHATGPT_MATCH),
+    ])
+
+    expect(fakeBrowser.tabs.query).toHaveBeenCalledTimes(1)
+    expect(sent).toHaveLength(2)
+  })
+
+  it('asks for the tabs again once the previous lookup finished', async () => {
+    installFakeTabs([{ id: 3 }])
+
+    await broadcast(FIXTURE_DATA_CHANGED, CHATGPT_MATCH)
+    await broadcast(FIXTURE_DATA_CHANGED, CHATGPT_MATCH)
+
+    expect(fakeBrowser.tabs.query).toHaveBeenCalledTimes(2)
+  })
+
+  it('looks tabs up per url pattern', async () => {
+    installFakeTabs([{ id: 3 }])
+
+    await Promise.all([
+      broadcast(FIXTURE_DATA_CHANGED, CHATGPT_MATCH),
+      broadcast(FIXTURE_DATA_CHANGED, 'https://example.com/*'),
+    ])
+
+    expect(fakeBrowser.tabs.query).toHaveBeenCalledTimes(2)
   })
 
   it('keeps delivering and resolves when one tab fails', async () => {
